@@ -1,0 +1,114 @@
+bn_naive_bayes_01:
+
+  var_targets:
+    - ODM_LIBELLE
+  var_features:
+    - SIG_LIEU
+    - SIG_ORGANE
+    - SIG_INCIDENT
+    - KILOMETRAGE
+    
+  model:
+    variables:
+      ODM_LIBELLE:
+      SIG_LIEU:
+      SIG_ORGANE:
+      SIG_INCIDENT:
+      KILOMETRAGE:
+
+    parents:
+      SIG_ORGANE:
+        - ODM_LIBELLE
+      KILOMETRAGE:
+        - ODM_LIBELLE
+
+
+bn_naive_bayes_02:
+
+  var_targets:
+    - ODM_LIBELLE
+  var_features:
+    - SIG_LIEU
+    - SIG_ORGANE
+    - SIG_INCIDENT
+    - KILOMETRAGE
+    
+  model:
+    variables:
+      ODM_LIBELLE:
+      SIG_LIEU:
+      SIG_ORGANE:
+      SIG_INCIDENT:
+      KILOMETRAGE:
+
+    parents:
+      SIG_LIEU:
+        - ODM_LIBELLE
+
+    
+bn_naive_bayes_03:
+
+  var_targets:
+    - ODM_LIBELLE
+  var_features:
+    - SIG_LIEU
+    - SIG_ORGANE
+    - SIG_INCIDENT
+    - KILOMETRAGE
+    
+  model:
+    variables: 
+      ODM_LIBELLE:
+      SIG_LIEU:
+      SIG_ORGANE:
+      SIG_INCIDENT:
+      KILOMETRAGE:
+
+    parents:
+      SIG_LIEU:
+        - ODM_LIBELLE
+      SIG_ORGANE:
+        - ODM_LIBELLE
+      SIG_INCIDENT:
+        - ODM_LIBELLE
+      KILOMETRAGE:
+        - ODM_LIBELLE
+
+
+bn_naive_bayes_04:
+  type: "BayesianNetworkModel"
+
+  var_targets:
+    - ODM_LIBELLE
+    - FONCTION_NIV2
+    
+  var_features:
+    - SIG_LIEU
+    - SIG_ORGANE
+    - SIG_INCIDENT
+    - GARANTIE
+    - KILOMETRAGE
+    
+  model:
+    variables: 
+      ODM_LIBELLE:
+      FONCTION_NIV2:
+      SIG_LIEU:
+      SIG_ORGANE:
+      SIG_INCIDENT:
+      KILOMETRAGE:
+      GARANTIE:
+
+    parents:
+      SIG_LIEU:
+        - ODM_LIBELLE
+      SIG_ORGANE:
+        - ODM_LIBELLE
+      SIG_INCIDENT:
+        - ODM_LIBELLE
+      GARANTIE:
+        - ODM_LIBELLE
+      KILOMETRAGE:
+        - ODM_LIBELLE
+      FONCTION_NIV2:
+        - ODM_LIBELLE

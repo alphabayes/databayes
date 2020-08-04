@@ -1,0 +1,101 @@
+CONTENT;LEVEL;DATETIME
+MSD open command;Set;2019-02-15 09:25:16
+ZONE3 MSD enable command;Set;2019-02-15 09:25:16
+MSD closed & locked;Reset;2019-02-15 09:25:16
+MSD Fully Opened;Set;2019-02-15 09:25:19
+MSD open command;Reset;2019-02-15 09:25:46
+MSD Fully Opened;Reset;2019-02-15 09:25:48
+MSD closed & locked;Set;2019-02-15 09:25:52
+ZONE3 MSD enable command;Reset;2019-02-15 09:25:53
+ZONE3 MSD enable command;Set;2019-02-15 09:35:15
+MSD open command;Set;2019-02-15 09:35:15
+MSD closed & locked;Reset;2019-02-15 09:35:16
+MSD Fully Opened;Set;2019-02-15 09:35:19
+MSD open command;Reset;2019-02-15 09:35:47
+MSD Fully Opened;Reset;2019-02-15 09:35:48
+MSD closed & locked;Set;2019-02-15 09:35:53
+ZONE3 MSD enable command;Reset;2019-02-15 09:35:54
+MSD closed & locked;Reset;2019-02-15 09:45:15
+ZONE3 MSD enable command;Set;2019-02-15 09:45:15
+MSD open command;Set;2019-02-15 09:45:15
+MSD Fully Opened;Set;2019-02-15 09:45:18
+MSD open command;Reset;2019-02-15 09:45:47
+MSD Fully Opened;Reset;2019-02-15 09:45:48
+MSD closed & locked;Set;2019-02-15 09:45:54
+ZONE3 MSD enable command;Reset;2019-02-15 09:45:54
+ZONE3 MSD enable command;Set;2019-02-15 09:55:14
+MSD closed & locked;Reset;2019-02-15 09:55:14
+MSD open command;Set;2019-02-15 09:55:14
+MSD Fully Opened;Set;2019-02-15 09:55:18
+MSD open command;Reset;2019-02-15 09:55:46
+MSD Fully Opened;Reset;2019-02-15 09:55:48
+MSD closed & locked;Set;2019-02-15 09:55:52
+ZONE3 MSD enable command;Reset;2019-02-15 09:55:53
+ZONE3 MSD enable command;Set;2019-02-15 10:05:15
+MSD open command;Set;2019-02-15 10:05:15
+MSD closed & locked;Reset;2019-02-15 10:05:16
+MSD Fully Opened;Set;2019-02-15 10:05:18
+MSD open command;Reset;2019-02-15 10:05:47
+MSD Fully Opened;Reset;2019-02-15 10:05:49
+MSD closed & locked;Set;2019-02-15 10:05:54
+ZONE3 MSD enable command;Reset;2019-02-15 10:05:54
+ZONE3 MSD enable command;Set;2019-02-15 10:15:16
+MSD open command;Set;2019-02-15 10:15:17
+MSD closed & locked;Reset;2019-02-15 10:15:17
+MSD Fully Opened;Set;2019-02-15 10:15:20
+MSD open command;Reset;2019-02-15 10:15:47
+MSD Fully Opened;Reset;2019-02-15 10:15:48
+MSD closed & locked;Set;2019-02-15 10:15:53
+ZONE3 MSD enable command;Reset;2019-02-15 10:15:54
+ZONE3 MSD enable command;Set;2019-02-15 10:25:15
+MSD closed & locked;Reset;2019-02-15 10:25:15
+MSD open command;Set;2019-02-15 10:25:15
+MSD Fully Opened;Set;2019-02-15 10:25:18
+MSD open command;Reset;2019-02-15 10:25:47
+MSD Fully Opened;Reset;2019-02-15 10:25:48
+MSD closed & locked;Set;2019-02-15 10:25:53
+ZONE3 MSD enable command;Reset;2019-02-15 10:25:54
+ZONE3 MSD enable command;Set;2019-02-15 10:35:18
+MSD open command;Set;2019-02-15 10:35:18
+MSD closed & locked;Reset;2019-02-15 10:35:19
+MSD Fully Opened;Set;2019-02-15 10:35:22
+MSD open command;Reset;2019-02-15 10:35:47
+MSD Fully Opened;Reset;2019-02-15 10:35:48
+MSD closed & locked;Set;2019-02-15 10:35:53
+ZONE3 MSD enable command;Reset;2019-02-15 10:35:54
+MSD open command;Set;2019-02-15 10:45:16
+MSD closed & locked;Reset;2019-02-15 10:45:16
+ZONE3 MSD enable command;Set;2019-02-15 10:45:16
+MSD Fully Opened;Set;2019-02-15 10:45:20
+MSD open command;Reset;2019-02-15 10:45:47
+MSD Fully Opened;Reset;2019-02-15 10:45:48
+MSD closed & locked;Set;2019-02-15 10:45:53
+ZONE3 MSD enable command;Reset;2019-02-15 10:45:54
+MSD closed & locked;Reset;2019-02-15 10:55:15
+MSD open command;Set;2019-02-15 10:55:15
+ZONE3 MSD enable command;Set;2019-02-15 10:55:15
+MSD Fully Opened;Set;2019-02-15 10:55:18
+MSD open command;Reset;2019-02-15 10:55:47
+MSD Fully Opened;Reset;2019-02-15 10:55:48
+MSD closed & locked;Set;2019-02-15 10:55:53
+ZONE3 MSD enable command;Reset;2019-02-15 10:55:54
+MSD open command;Set;2019-02-15 11:05:17
+ZONE3 MSD enable command;Set;2019-02-15 11:05:17
+MSD closed & locked;Reset;2019-02-15 11:05:18
+MSD Fully Opened;Set;2019-02-15 11:05:21
+MSD open command;Reset;2019-02-15 11:05:47
+MSD Fully Opened;Reset;2019-02-15 11:05:48
+MSD closed & locked;Set;2019-02-15 11:05:53
+ZONE3 MSD enable command;Reset;2019-02-15 11:05:53
+MSD closed & locked;Reset;2019-02-15 11:15:15
+MSD open command;Set;2019-02-15 11:15:15
+ZONE3 MSD enable command;Set;2019-02-15 11:15:15
+MSD Fully Opened;Set;2019-02-15 11:15:18
+MSD open command;Reset;2019-02-15 11:15:47
+MSD Fully Opened;Reset;2019-02-15 11:15:48
+MSD closed & locked;Set;2019-02-15 11:15:53
+ZONE3 MSD enable command;Reset;2019-02-15 11:15:53
+MSD open command;Set;2019-02-15 11:25:15
+MSD closed & locked;Reset;2019-02-15 11:25:15
+ZONE3 MSD enable command;Set;2019-02-15 11:25:15
+MSD Fully Opened;Set;2019-02-15 11:25:18
