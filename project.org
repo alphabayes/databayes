@@ -1,0 +1,36 @@
+# -*- coding: utf-8 -*-
+# -*- buffer-auto-save-file-name: nil; -*-
+
+#+TITLE: Datautils-common
+#+AUTHOR: Roland
+
+:CACHE:
+#+DRAWERS: OPTIONS CACHE MACROS
+#+STARTUP: content
+#+STARTUP: hidestars
+
+#+TODO: TODO(t) TOPREPARE(a) INPROGRESS(p) POSTPONED(r) WAITING(w) | DONE(d) CANCELLED(c)
+
+#+LANGUAGE: fr
+#+OPTIONS: H:4 num:t toc:3 \n:nil @:t ::t |:t ^:{} f:t TeX:t author:t
+:CACHE:
+
+* TODO Implement BayesNet model
+** INPROGRESS Wrap pyAgrum lib
+*** DONE Implement fit method
+*** TODO Allow BN initialization without variable domain info
+- Allow BN initialization on qualitative info only, variables names and parents
+- Manage Backend initialization in this case because pyagrum does not support empty labels variable
+  init
+- Test the use of init_from_pd_df in this case
+
+* Pytest Cheat Sheet
+
+** Select a specific test
+
+- -s :: Allow ipdb
+- --log-cli-level=debug :: Show logs (with respect to levels) in CLI
+- -k <pattern> :: execute test function with specific patterns
+#+BEGIN_SRC sh
+pytest -s --log-cli-level=debug -k _003_01
+#+END_SRC
