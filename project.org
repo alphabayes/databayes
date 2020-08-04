@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # -*- buffer-auto-save-file-name: nil; -*-
 
-#+TITLE: Datautils-common
+#+TITLE: Data Bayes
 #+AUTHOR: Roland
 
 :CACHE:
