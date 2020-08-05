@@ -8,6 +8,8 @@ image: python:3.6
     
 stages:
   - tests
+  # - build
+  # - deploy
   
 tests:
   stage: tests
@@ -17,30 +19,30 @@ tests:
     - pip install -e ./
     - cd databayes/tests && pytest -v --runslow
   
-build_wheel:
-  extends: .only-version-branch
+# build_wheel:
+#   extends: .only-version-branch
 
-  stage: build
+#   stage: build
 
-  script:
-    - pip install wheel
-    - pip install packaging==20.0
-    - python setup.py bdist_wheel
-  artifacts:
-    paths:
-    - dist/
-    expire_in: 1 day
+#   script:
+#     - pip install wheel
+#     - pip install packaging==20.0
+#     - python setup.py bdist_wheel
+#   artifacts:
+#     paths:
+#     - dist/
+#     expire_in: 1 day
 
-deploy:
-  extends: .only-version-branch
+# deploy:
+#   extends: .only-version-branch
 
-  stage: deploy
+#   stage: deploy
 
-  variables:
-    TWINE_USERNAME: $EM_REGISTRY_USER
-    TWINE_PASSWORD: $EM_REGISTRY_PWD
-  script:
-    - pip install twine
-    - twine upload --repository-url $EM_REGISTRY_PYTHON dist/*
+#   variables:
+#     TWINE_USERNAME: $EM_REGISTRY_USER
+#     TWINE_PASSWORD: $EM_REGISTRY_PWD
+#   script:
+#     - pip install twine
+#     - twine upload --repository-url $EM_REGISTRY_PYTHON dist/*
 
 
