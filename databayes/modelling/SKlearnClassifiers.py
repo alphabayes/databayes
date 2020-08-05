@@ -66,19 +66,19 @@ class MLPClassifierHyperParameters(dcm.HyperParametersBase):
         15000, description="Only used when solver=’lbfgs’. Maximum number of loss function calls.")
 
     @pydantic.validator('activation')
-    def check_type(cls, val):
+    def check_activation(cls, val):
         if not (val in ['identity', 'logistic', 'tanh', 'relu']):
             raise ValueError(f"{val} isn't an activation function")
         return val
 
     @pydantic.validator('solver')
-    def check_type(cls, val):
+    def check_solver(cls, val):
         if not (val in ['lbfgs', 'sgd', 'adam']):
             raise ValueError(f"{val} isn't a solver for weight optimization")
         return val
 
     @pydantic.validator('learning_rate')
-    def check_type(cls, val):
+    def check_learning_rate(cls, val):
         if not (val in ['constant', 'invscaling', 'adaptive']):
             raise ValueError(f"{val} isn't a solver for weight optimization")
         return val
@@ -212,29 +212,31 @@ class MLSklearnClassifierModelMultiLabel(MLSklearnClassifierModel):
                        **self.fit_parameters.dict(), **kwds)
 
     def predict(self, data, logger=None, progress_mode=False, **kwds):
-        
+
         X = self.transform_mapping(data[self.var_features])
 
         y_pred_np = self.model.predict_proba(X,
                                              **self.predict_parameters.dict(), **kwds)
-        
-        pred_res = {tv: 
-                        {"scores": dd.DiscreteDistribution(index=data.index, 
-                                                            domain=list(self.column_mapping[tv]['label'].keys()))
-                        }
+
+        pred_res = {tv:
+                    {"scores": dd.DiscreteDistribution(index=data.index,
+                                                       domain=list(self.column_mapping[tv]['label'].keys()))
+                     }
                     for tv in self.var_targets}
 
         for i, tv in enumerate(self.var_targets):
-            
-            y_pred = y_pred_np if len(self.var_targets) == 1 else y_pred_np[i]
-            domain_pred = self.model.classes_ if len(self.var_targets) == 1 else self.model.classes_[i]
 
-            var_domain = self.transform_mapping(domain_pred, column_name=tv,from_int_to_str=True)
-            
-            pred_res[tv]["scores"].loc[:, var_domain] = dd.DiscreteDistribution(y_pred, 
-                                                                                index=data.index, 
+            y_pred = y_pred_np if len(self.var_targets) == 1 else y_pred_np[i]
+            domain_pred = self.model.classes_ if len(
+                self.var_targets) == 1 else self.model.classes_[i]
+
+            var_domain = self.transform_mapping(
+                domain_pred, column_name=tv, from_int_to_str=True)
+
+            pred_res[tv]["scores"].loc[:, var_domain] = dd.DiscreteDistribution(y_pred,
+                                                                                index=data.index,
                                                                                 domain=var_domain
-                                                                            )
+                                                                                )
         return pred_res
 
 
@@ -266,23 +268,25 @@ class MLSklearnClassifierModelBinaryLabel(MLSklearnClassifierModel):
             # Si on n'a rencontré qu'un seul label dans le jeu de données, predict_proba() renvoit
             # un y_pred qui contient deux colonnes (alors qu'il ne devrait renvoyer qu'une seule colonne).
             # On crée donc une colonne unique de 1 si le nombre de classes est égal à 1
-            
+
             if len(self.model[tv].classes_) > 1:
                 pred_res[tv] = \
                     {"scores": dd.DiscreteDistribution(
-                            y_pred_dict[tv], 
-                            index=data.index, 
-                            domain=self.transform_mapping(self.model[tv].classes_, column_name=tv,from_int_to_str=True)
-                            )
-                    }  
+                        y_pred_dict[tv],
+                        index=data.index,
+                        domain=self.transform_mapping(
+                            self.model[tv].classes_, column_name=tv, from_int_to_str=True)
+                    )
+                }
             else:
                 pred_res[tv] = \
                     {"scores": dd.DiscreteDistribution(
-                                    1, 
-                                    index=data.index, 
-                                    domain=self.transform_mapping(self.model[tv].classes_, column_name=tv,from_int_to_str=True)
-                                )
-                    }
+                        1,
+                        index=data.index,
+                        domain=self.transform_mapping(
+                            self.model[tv].classes_, column_name=tv, from_int_to_str=True)
+                    )
+                }
         return pred_res
 
 
