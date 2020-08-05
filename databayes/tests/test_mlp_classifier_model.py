@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from datautils_common.modelling.DiscreteDistribution import DiscreteDistribution
-from datautils_common.modelling.SKlearnClassifiers import MLPClassifierModel
-from datautils_common.utils.ml_performance import MLPerformance
+from databayes.modelling.DiscreteDistribution import DiscreteDistribution
+from databayes.modelling.SKlearnClassifiers import MLPClassifierModel
+from databayes.utils.ml_performance import MLPerformance
 import yaml
 import numpy as np
 import pandas as pd

@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 import pydantic
 import typing
-import datautils_common.utils.ml_performance as mlperf
-import datautils_common.modelling.core as dcm
+import databayes.utils.ml_performance as mlperf
+import databayes.modelling.core as dcm
 from sklearn.neighbors import KDTree
 
 import pkg_resources

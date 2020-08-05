@@ -5,7 +5,7 @@
 import os
 import logging
 
-from datautils_common.modelling.DiscreteDistribution import DiscreteDistribution
+from databayes.modelling.DiscreteDistribution import DiscreteDistribution
 import pytest
 import numpy as np
 import pandas as pd

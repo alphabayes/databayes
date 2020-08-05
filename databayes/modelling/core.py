@@ -9,7 +9,7 @@ import sys
 import subprocess
 import pkg_resources
 
-import datautils_common.modelling.DiscreteDistribution as dd
+import databayes.modelling.DiscreteDistribution as dd
 
 installed_pkg = {pkg.key for pkg in pkg_resources.working_set}
 if 'ipdb' in installed_pkg:

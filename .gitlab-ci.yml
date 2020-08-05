@@ -17,7 +17,7 @@ tests:
     - pip install packaging==20.0
     - pip install pytest==5.3.2
     - pip install -e ./
-    - cd datautils_common/tests && pytest -v --runslow
+    - cd databayes/tests && pytest -v --runslow
   
 build_wheel:
   extends: .only-version-branch

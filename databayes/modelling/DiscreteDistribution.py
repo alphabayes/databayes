@@ -12,7 +12,7 @@ import numbers
 import numpy as np
 import pandas as pd
 
-import datautils_common.modelling.DiscreteVariable as dv
+import databayes.modelling.DiscreteVariable as dv
 
 # For graph plot
 
@@ -237,7 +237,7 @@ class DiscreteDistribution(FrozenClass, pd.DataFrame):
 
     def E(self, lower_bound=-float("inf"), upper_bound=float("inf")):
         self.checksum()
-        
+
         if self.variable.domain_type == "numeric":
             expect = self @ self.variable.domain
         elif self.variable.domain_type == "interval":

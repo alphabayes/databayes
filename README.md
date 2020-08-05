@@ -1,3 +1,3 @@
-# datautils-common
+# Data Bayes
 
-Librairies utilitaires pour le traitement de données
+Machine learning and bayesian approach library

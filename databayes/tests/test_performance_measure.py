@@ -1,10 +1,10 @@
-import datautils_common.utils.performance_measure as pfm
-from datautils_common.modelling.DiscreteDistribution \
+import databayes.utils.performance_measure as pfm
+from databayes.modelling.DiscreteDistribution \
     import DiscreteDistribution
 
-from datautils_common.utils.ml_performance import MLPerformance
+from databayes.utils.ml_performance import MLPerformance
 import yaml
-from datautils_common.modelling.SKlearnClassifiers import RandomForestModel
+from databayes.modelling.SKlearnClassifiers import RandomForestModel
 
 import numpy as np
 import pandas as pd

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-import datautils_common.modelling.core as dcmc
-import datautils_common.utils.etl as etl
+import databayes.modelling.core as dcmc
+import databayes.utils.etl as etl
 import yaml
 import numpy as np
 import pandas as pd

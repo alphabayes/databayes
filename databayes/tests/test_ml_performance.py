@@ -1,6 +1,6 @@
-from datautils_common.utils.ml_performance import MLPerformance
-from datautils_common.modelling.core import MLModel
-from datautils_common.modelling.BayesNet import BayesianNetworkModel
+from databayes.utils.ml_performance import MLPerformance
+from databayes.modelling.core import MLModel
+from databayes.modelling.BayesNet import BayesianNetworkModel
 import yaml
 import numpy as np
 import pandas as pd

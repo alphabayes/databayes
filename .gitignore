@@ -3,3 +3,8 @@ __pycache__/
 
 # Distribution / packaging
 *.egg-info/
+
+oldies/
+old/
+
+nohup.out

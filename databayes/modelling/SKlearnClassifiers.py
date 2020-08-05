@@ -2,9 +2,9 @@ import numpy as np
 import pandas as pd
 import pydantic
 import typing
-import datautils_common.modelling.DiscreteDistribution as dd
-import datautils_common.modelling.DiscreteVariable as dv
-import datautils_common.modelling.core as dcm
+import databayes.modelling.DiscreteDistribution as dd
+import databayes.modelling.DiscreteVariable as dv
+import databayes.modelling.core as dcm
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 import pkg_resources

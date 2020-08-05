@@ -1,6 +1,6 @@
-from datautils_common.modelling.DiscreteDistribution import DiscreteDistribution
-from datautils_common.modelling.SKlearnClassifiers import RandomForestModel
-from datautils_common.utils.ml_performance import MLPerformance
+from databayes.modelling.DiscreteDistribution import DiscreteDistribution
+from databayes.modelling.SKlearnClassifiers import RandomForestModel
+from databayes.utils.ml_performance import MLPerformance
 import yaml
 import pprint
 import numpy as np

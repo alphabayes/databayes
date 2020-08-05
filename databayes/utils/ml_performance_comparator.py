@@ -1,14 +1,14 @@
 import typing
 import inspect
 
-import datautils_common.modelling.core as dmc
+import databayes.modelling.core as dmc
 import numpy as np
 import pandas as pd
 import tqdm
 import pydantic
-import datautils_common.modelling.DiscreteDistribution as dd
-import datautils_common.utils.performance_measure as pm
-import datautils_common.utils.ml_performance as ml_perf
+import databayes.modelling.DiscreteDistribution as dd
+import databayes.utils.performance_measure as pm
+import databayes.utils.ml_performance as ml_perf
 
 import dash
 import dash_bootstrap_components as dbc

@@ -1,5 +1,5 @@
-from datautils_common.modelling.DiscreteDistribution import DiscreteDistribution
-from datautils_common.modelling.BayesNet import BayesianNetwork, BayesianNetworkModel
+from databayes.modelling.DiscreteDistribution import DiscreteDistribution
+from databayes.modelling.BayesNet import BayesianNetwork, BayesianNetworkModel
 import yaml
 import pprint
 import numpy as np
@@ -552,7 +552,7 @@ def test_BayesianNetworkModel_001(cmapss_data_100_discrete_df):
         for pred_key in pred_test.get(var, {}).keys():
             pred_res = pred_test.get(var, {}).get(pred_key, {})
             pred_res_bis = pred_test_bis.get(var, {}).get(pred_key, {})
-            assert (pred_res == pred_res_bis).all(None)
+            assert (pred_res.values == pred_res_bis.values).all(None)
 
 
 def test_BayesianNetworkModel_002(gmaobus_models_specs, gmaobus_om_ot_100_df):
