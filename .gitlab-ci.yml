@@ -14,8 +14,8 @@ stages:
 tests:
   stage: tests
   script:
-    - pip install packaging==20.0
-    - pip install pytest==5.3.2
+    - pip install packaging>=20.0
+    - pip install pytest>=5.3.2
     - pip install -e ./
     - cd databayes/tests && pytest -v --runslow
   
@@ -26,8 +26,8 @@ tests:
 
 #   script:
 #     - pip install wheel
-#     - pip install packaging==20.0
-#     - python setup.py bdist_wheel
+#     - pip install packaging
+#     - python setup.py sdist bdist_wheel
 #   artifacts:
 #     paths:
 #     - dist/

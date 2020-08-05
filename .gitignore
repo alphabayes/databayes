@@ -2,9 +2,12 @@
 __pycache__/
 
 # Distribution / packaging
+dist/
+build/
 *.egg-info/
 
 oldies/
 old/
 
 nohup.out
+

@@ -24,7 +24,7 @@ else:
 
 setup(name='databayes',
       version=version,
-      url='https://gitlab.edgemind.net/deep-framework/datautils-common',
+      url='https://gitlab.com/alphabayes/databayes',
       author='Roland Donat',
       author_email='roland.donat@gmail.com, roland.donat@alphabayes.fr',
       maintainer='Roland Donat',
