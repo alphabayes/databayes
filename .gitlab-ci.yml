@@ -8,8 +8,6 @@ image: python:3.6
     
 stages:
   - tests
-#  - build
-#  - deploy
   
 tests:
   stage: tests
