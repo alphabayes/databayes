@@ -1,9 +1,15 @@
+import ipdb
 from setuptools import setup, find_packages
 import os
 import packaging.version
 
 # Determine version on branch name
 active_branch = os.environ.get('CI_COMMIT_REF_NAME')
+if active_branch is None:
+    import git
+
+    local_repo = git.Repo('./')
+    active_branch = local_repo.active_branch.name
 
 if not(active_branch is None):
     # CI case
@@ -19,6 +25,7 @@ else:
     # No CI
     version = "unstable"
 
+ipdb.set_trace()
 # with open('requirements.txt') as f:
 #     required_pkg = f.read().splitlines()
 
@@ -30,7 +37,14 @@ setup(name='databayes',
       maintainer='Roland Donat',
       maintainer_email='roland.donat@gmail.com',
       keywords='pronostic datascience machine-learning ',
-      classifiers=['Topic :: datascience', 'Topic :: machine-learning '],
+      classifiers=[
+          'Development Status :: 3 - Alpha',
+          'Intended Audience :: Science/Research',
+          'License :: OSI Approved :: MIT License',
+          'Operating System :: POSIX :: Linux',
+          'Programming Language :: Python :: 3.7',
+          'Topic :: Scientific/Engineering :: Artificial Intelligence'
+      ],
       packages=find_packages(
           exclude=[
               "*.tests",
