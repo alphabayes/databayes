@@ -25,7 +25,6 @@ else:
     # No CI
     version = "unstable"
 
-ipdb.set_trace()
 # with open('requirements.txt') as f:
 #     required_pkg = f.read().splitlines()
 
