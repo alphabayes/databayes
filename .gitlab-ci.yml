@@ -14,7 +14,6 @@ tests:
   script:
     - pip install packaging>=20.0
     - pip install pytest>=5.3.2
-    - pip install git
     - pip install -e ./
     - cd databayes/tests && pytest -v --runslow
   
