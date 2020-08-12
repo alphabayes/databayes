@@ -448,9 +448,13 @@ class BayesianNetwork(pydantic.BaseModel):
         #     # data[var] = data[var].astype(str).astype(data_var_type)
         #     self.adapt_series_categories(data[var], inplace=True)
 
+        # ipdb.set_trace()
+
         # Compute counts from input data
+        index_name = data.index.name if not(data.index.name is None) \
+            else "index"
         cct_cur_df = data[var_dim].reset_index()\
-            .groupby(var_dim)["index"]\
+            .groupby(var_dim)[index_name]\
             .count()\
             .rename("count")
 
