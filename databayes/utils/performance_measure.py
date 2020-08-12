@@ -32,7 +32,8 @@ class PerformanceMeasureBase(pydantic.BaseModel, abc.ABC):
     variables: list = pydantic.Field(
         [], description="Variables considered by the measure")
     result: typing.Any = pydantic.Field(None, description="Measurement result")
-    group_by: typing.List[str] = pydantic.Field([], description="Group by arguments")
+    group_by: typing.List[str] = pydantic.Field(
+        [], description="Group by arguments")
 
     def evaluate(self, data_test, pred_prob):
         pass
@@ -80,7 +81,7 @@ class ConfusionMatrixMeasure(PerformanceMeasureBase):
             network_pred = pred_prob[tv]["scores"].get_map()
             self.result[tv] = pd.crosstab(
                 data_test[tv], network_pred['map_1'], dropna=False).to_dict('records')
-            
+
         return self.result
 
     def plotly_specs(self):
@@ -89,7 +90,7 @@ class ConfusionMatrixMeasure(PerformanceMeasureBase):
 
         for tv in self.variables:
             cm_df = pd.DataFrame.from_records(self.result[tv])
-            
+
             cm_df.index = cm_df.columns
             cm[tv] = cm_df
 
@@ -176,7 +177,7 @@ class SuccessMeasure(PerformanceMeasureBase):
     data_test: pd.DataFrame = pydantic.Field(
         pd.DataFrame(), description="Data test")
 
-    #Dict of DiscreteDistribution
+    # Dict of DiscreteDistribution
     pred_prob: dict = pydantic.Field(
         {}, description="Data prediction probability")
 
@@ -234,7 +235,7 @@ class SuccessMeasure(PerformanceMeasureBase):
             map_prob = pd.DataFrame(
                 np.sort(-prob["scores"].values, axis=1)[:, :max(self.map_k)], index=pred_map_kmax.index)
             for k in range(1, max(self.map_k) + 1):
-                
+
                 if len(self.map_k) == 1:
                     pred_map_k = pred_map_kmax[:]
                 else:
@@ -271,7 +272,6 @@ class SuccessMeasure(PerformanceMeasureBase):
         return self.result
 
     def evaluate_indep(self):
-
         self.result["indep"] = [{
             "map_k": k,
             **self.pred_success[k].agg(["mean", "sum"]).to_dict()
@@ -346,7 +346,6 @@ class SuccessMeasure(PerformanceMeasureBase):
                 dfd[key] = to_frame_method()
 
         return dfd
-
 
     ###############################################
     #                                             #
@@ -589,42 +588,45 @@ class SuccessMeasure(PerformanceMeasureBase):
         }
         return fig_specs
 
-
     def get_success_table_layout(self, app, tv):
 
         pred_map_kmax = self.pred_prob[tv]["scores"].get_map(
-                    max(self.map_k))
+            max(self.map_k))
         map_prob = - pd.DataFrame(
             np.sort(-self.pred_prob[tv]["scores"].values, axis=1)[:, :max(self.map_k)], index=pred_map_kmax.index)
-        
-        success_k = pd.DataFrame(np.zeros((len(self.data_test), max(self.map_k))), columns=[f'map_{k}' for k in range(1, max(self.map_k) + 1)], index=self.data_test.index)
-        
+
+        success_k = pd.DataFrame(np.zeros((len(self.data_test), max(self.map_k))), columns=[
+                                 f'map_{k}' for k in range(1, max(self.map_k) + 1)], index=self.data_test.index)
+
         map_prob_length = min(max(self.map_k), len(pred_map_kmax.columns))
         map_prob.columns = [f'map_{k}' for k in range(1, map_prob_length + 1)]
-        
+
         for k in range(1, max(self.map_k) + 1):
             success_k.loc[:, f'map_{k}'] = self.pred_success[k].loc[:, tv]
-        
+
         success_k_length = len(success_k)
-        success_first_k = pd.Series(np.array([max(self.map_k) + 1 for i in range(success_k_length)]), index=self.data_test.index) - success_k.sum(axis=1)
+        success_first_k = pd.Series(np.array([max(self.map_k) + 1 for i in range(
+            success_k_length)]), index=self.data_test.index) - success_k.sum(axis=1)
         success_first_k[success_first_k == max(self.map_k) + 1] = -1
         success_first_k = success_first_k.astype('str')
 
-        d_test_features = self.data_test.drop(labels=self.variables + self.group_by, axis=1)
+        d_test_features = self.data_test.drop(
+            labels=self.variables + self.group_by, axis=1)
         features_columns = d_test_features.columns
-        df_table = pd.concat([d_test_features, self.data_test[tv], success_first_k], axis=1).reset_index()
+        df_table = pd.concat(
+            [d_test_features, self.data_test[tv], success_first_k], axis=1).reset_index()
         df_table.columns = df_table.columns[:-1].to_list() + ['map_k']
-        
+
         def create_tooltip(i, col):
             current_index = self.data_test.index[0] + i
             first_k = success_first_k.loc[current_index]
             if col == "map_k" and first_k != '-1':
-                
+
                 col_map = f'map_{first_k}'
                 label = pred_map_kmax.loc[current_index, col_map]
-                    
+
                 prob = map_prob.loc[current_index, col_map]
-                
+
                 return textwrap.dedent('''
                     Exact label: 
                     **{value1}**.
@@ -634,8 +636,8 @@ class SuccessMeasure(PerformanceMeasureBase):
 
                     **K = {value3}**
                     '''.format(value1=label,
-                                value2=prob,
-                                value3=first_k)
+                               value2=prob,
+                               value3=first_k)
                 )
             elif col == "map_k":
                 return textwrap.dedent(
@@ -649,26 +651,27 @@ class SuccessMeasure(PerformanceMeasureBase):
                     Column: **{value}**.
                     '''.format(value=col)
                 )
-        
+
         colorscale = [
-            'rgb(0,68,27)', 
-            'rgb(0,109,44)', 
-            'rgb(35,139,69)', 
-            'rgb(65,171,93)', 
-            'rgb(116,196,118)', 
-            'rgb(161,217,155)', 
+            'rgb(0,68,27)',
+            'rgb(0,109,44)',
+            'rgb(35,139,69)',
+            'rgb(65,171,93)',
+            'rgb(116,196,118)',
+            'rgb(161,217,155)',
             # 'rgb(199,233,192)',
-            # 'rgb(229,245,224)', 
+            # 'rgb(229,245,224)',
             # 'rgb(247,252,245)'
-            ]
+        ]
         colorscale.reverse()
         if max(self.map_k) <= 6:
             adapted_colorscale = colorscale[:max(self.map_k) + 1]
         else:
-            adapted_colorscale = colorscale[:] + ['rgb(0,50,15)' for j in range(max(self.map_k) - 6)]
+            adapted_colorscale = colorscale[:] + \
+                ['rgb(0,50,15)' for j in range(max(self.map_k) - 6)]
 
         layout = [
-            
+
             dash_table.DataTable(
                 id='success-table-bis',
                 data=df_table.to_dict('records'),
@@ -683,22 +686,22 @@ class SuccessMeasure(PerformanceMeasureBase):
                             'filter_query': '{map_k} = ' + str(i)
                         },
                         'backgroundColor': color,
-                        #'color': color,
+                        # 'color': color,
                         # 'font-family': 'cursive',
                         # 'font-size': '26px'
                     }
                     for i, color in zip([j for j in range(1, max(self.map_k) + 1)], adapted_colorscale)
                 ] + [
-                        {
-                            'if': {
-                                'column_id': 'map_k',
-                                'filter_query': '{map_k} = ' + str(-1)
-                            },
-                            'backgroundColor': 'rgb(226, 89, 89)',
-                            'color': 'rgb(226, 89, 89)',
-                            # 'font-family': 'cursive',
-                            # 'font-size': '26px'
-                        }
+                    {
+                        'if': {
+                            'column_id': 'map_k',
+                            'filter_query': '{map_k} = ' + str(-1)
+                        },
+                        'backgroundColor': 'rgb(226, 89, 89)',
+                        'color': 'rgb(226, 89, 89)',
+                        # 'font-family': 'cursive',
+                        # 'font-size': '26px'
+                    }
                 ],
                 css=[{"selector": ".show-hide", "rule": "display: none"},  # hide toggle button
                      {
@@ -716,7 +719,7 @@ class SuccessMeasure(PerformanceMeasureBase):
                             'delay': 180,
                             'duration': 10000
                         }
-                        
+
                         for col in df_table.columns
                     }
                     for i in range(len(df_table))
@@ -725,7 +728,8 @@ class SuccessMeasure(PerformanceMeasureBase):
             dcc.Checklist(
                 id='checkbox-hide-columns',
                 options=[
-                    {'label': 'Hide features columns', 'value': 'hide_features_columns'}
+                    {'label': 'Hide features columns',
+                        'value': 'hide_features_columns'}
                 ],
                 value=[]
             ),
@@ -745,25 +749,30 @@ class SuccessMeasure(PerformanceMeasureBase):
         @app.callback(
             Output("map-prob-bis-content", "children"),
             [Input('success-table-bis', 'active_cell'),
-            Input('success-table-bis', "page_current"),
-            Input('success-table-bis', "page_size")]
+             Input('success-table-bis', "page_current"),
+             Input('success-table-bis', "page_size")]
         )
         def render_map_prob(active_cell_dict, page_current, page_size):
-            
+
             if not(active_cell_dict is None):
-                current_index = self.data_test.index[0] + page_current*page_size + active_cell_dict['row']
+                current_index = self.data_test.index[0] + \
+                    page_current*page_size + active_cell_dict['row']
                 table_length = min(max(self.map_k), len(pred_map_kmax.columns))
-                
-                map_prob_table = pd.DataFrame(np.zeros((table_length, 2)), columns=['Predicted labels', 'probs'], index=range(1, table_length+1))
-                map_prob_table.loc[:, 'Predicted labels'] = pred_map_kmax.loc[current_index].to_list()
-                map_prob_table.loc[:, 'probs'] = map_prob.loc[current_index].to_list()
+
+                map_prob_table = pd.DataFrame(np.zeros((table_length, 2)), columns=[
+                                              'Predicted labels', 'probs'], index=range(1, table_length+1))
+                map_prob_table.loc[:, 'Predicted labels'] = pred_map_kmax.loc[current_index].to_list(
+                )
+                map_prob_table.loc[:,
+                                   'probs'] = map_prob.loc[current_index].to_list()
                 return dash_table.DataTable(
-                            id='map-prob-table-bis',
-                            data=map_prob_table.to_dict('records'),
-                            columns=[{'id': c, 'name': c} for c in map_prob_table.columns],
-                            page_size=5,
-                            style_cell={'textAlign': 'center'},
-                        )
+                    id='map-prob-table-bis',
+                    data=map_prob_table.to_dict('records'),
+                    columns=[{'id': c, 'name': c}
+                             for c in map_prob_table.columns],
+                    page_size=5,
+                    style_cell={'textAlign': 'center'},
+                )
             else:
                 return None
 
@@ -793,8 +802,9 @@ class SuccessMeasure(PerformanceMeasureBase):
                     ]),
                     dbc.Row(
                         html.Div(
-                            id='joint-graph', 
-                            children=dcc.Graph(figure=go.Figure(fig_joint_specs))
+                            id='joint-graph',
+                            children=dcc.Graph(
+                                figure=go.Figure(fig_joint_specs))
                         )
                     )
                 ]
@@ -806,8 +816,8 @@ class SuccessMeasure(PerformanceMeasureBase):
                         [
                             dcc.Tab(label="Graphs",
                                     children=layout_graph_content
-                                ),
-                    
+                                    ),
+
                             dcc.Tab(label="Data",
                                     children=[
                                         dcc.Dropdown(
@@ -822,7 +832,7 @@ class SuccessMeasure(PerformanceMeasureBase):
                                         html.Div(
                                             id='success-table-content', children=self.get_success_table_layout(app, self.variables[0]))
                                     ]
-                            )
+                                    )
                         ]
                     )
                 ]
@@ -840,13 +850,15 @@ class SuccessMeasure(PerformanceMeasureBase):
 
 
 class AbsoluteErrorMeasure(PerformanceMeasureBase):
-    
+
     calculation_method: str = pydantic.Field('eap', description="Whether we calculate the predicted scalar by \
                                                     calculating the eap of the DiscreteDistribution predicted or the map of this distribution")
 
-    plot_trajectories: dict = pydantic.Field({}, description="Plotting datas for trajectories")
+    plot_trajectories: dict = pydantic.Field(
+        {}, description="Plotting datas for trajectories")
 
-    ae_trajectories: dict = pydantic.Field({}, description="Histogram datas for trajectories")
+    ae_trajectories: dict = pydantic.Field(
+        {}, description="Histogram datas for trajectories")
 
     data_test: pd.DataFrame = pydantic.Field(
         pd.DataFrame(), description="Data test")
@@ -860,35 +872,37 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
             raise ValueError(f"{val} isn't a calculation method")
         return val
 
-
     def evaluate_ae(self, data_test, pred_prob):
-        
+
         self.variables = list(pred_prob.keys())
 
         self.result["ae"] = dict()
         for tv in self.variables:
             if pred_prob[tv]['scores'].variable.domain_type == 'numeric':
                 if self.calculation_method == 'eap':
-                    #NOTE: On change le type categorical de data_test en float pour pouvoir faire la soustraction
-                    self.result["ae"][tv] = abs(pred_prob[tv]['scores'].E() - data_test[tv].astype('float'))
-                    
+                    # NOTE: On change le type categorical de data_test en float pour pouvoir faire la soustraction
+                    self.result["ae"][tv] = abs(
+                        pred_prob[tv]['scores'].E() - data_test[tv].astype('float'))
+
                 elif self.calculation_method == 'map':
-                    self.result["ae"][tv] = abs(pred_prob[tv]['scores'].get_map().loc[:, 'map_1'].astype('float') - data_test[tv].astype('float')) 
-            
+                    self.result["ae"][tv] = abs(pred_prob[tv]['scores'].get_map(
+                    ).loc[:, 'map_1'].astype('float') - data_test[tv].astype('float'))
+
             elif pred_prob[tv]['scores'].variable.domain_type == 'interval':
 
                 interval_values = \
-                        [
-                            (float(lab.split(",")[0][1:]),
-                                float(lab.split(",")[1][0:-1]))
-                            for lab in data_test[tv]
-                        ]
+                    [
+                        (float(lab.split(",")[0][1:]),
+                         float(lab.split(",")[1][0:-1]))
+                        for lab in data_test[tv]
+                    ]
 
-                data_test_intervals = [pd.Interval(it[0],it[1]).mid
-                                        for it in interval_values]
-                
+                data_test_intervals = [pd.Interval(it[0], it[1]).mid
+                                       for it in interval_values]
+
                 if self.calculation_method == 'eap':
-                    self.result["ae"][tv] = abs(pred_prob[tv]['scores'].E() - data_test_intervals)
+                    self.result["ae"][tv] = abs(
+                        pred_prob[tv]['scores'].E() - data_test_intervals)
 
                 elif self.calculation_method == 'map':
 
@@ -898,21 +912,20 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
                                 float(lab.split(",")[1][0:-1]))
                             for lab in pred_prob[tv]['scores'].get_map().loc[:, 'map_1']
                         ]
-                    
-                    map_intervals = pd.Series([pd.Interval(it[0],it[1]).mid
-                                        for it in interval_map_values], index=data_test.index)
-                    
-                    self.result["ae"][tv] = abs(map_intervals - data_test_intervals)
-        
 
+                    map_intervals = pd.Series([pd.Interval(it[0], it[1]).mid
+                                               for it in interval_map_values], index=data_test.index)
+
+                    self.result["ae"][tv] = abs(
+                        map_intervals - data_test_intervals)
 
     def evaluate_mae(self, data_test, pred_prob):
-        
+
         if self.group_by == []:
             pass
             # raise ValueError("No group_by argument has been applied")
         else:
-            data_grp=data_test.groupby(self.group_by)
+            data_grp = data_test.groupby(self.group_by)
             data_test_group_list = list(data_grp.indices.keys())
             data_index_grp_df = data_test.reset_index().set_index(self.group_by)
 
@@ -925,30 +938,30 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
                 self.ae_trajectories[tv] = dict()
                 for d_test_group_index in data_test_group_list:
 
-                    
-                    d_test = data_index_grp_df.loc[d_test_group_index].set_index("index")
-                    
-                    mae = round(res[tv].loc[d_test.index].sum() / res[tv].loc[d_test.index].count(), 3)
+                    d_test = data_index_grp_df.loc[d_test_group_index].set_index(
+                        "index")
+
+                    mae = round(res[tv].loc[d_test.index].sum() /
+                                res[tv].loc[d_test.index].count(), 3)
                     dscr = res[tv].loc[d_test.index].describe()
-                    
+
                     self.plot_trajectories[tv][mae] = \
-                            {
-                                'predicted': {
-                                    'x': [i for i in range(len(d_test.index))], 
-                                    #On affiche la prediction de la RUL la plus probable (ie le map)
-                                    'y': pred_prob[tv]['scores'].get_map().loc[d_test.index, 'map_1'].astype('float')
-                                },
-                                'exact': {
-                                    'x': [i for i in range(len(d_test.index))], 
-                                    'y': d_test[tv]
-                                }
-                                
-                            }
-                    
+                        {
+                        'predicted': {
+                            'x': [i for i in range(len(d_test.index))],
+                            # On affiche la prediction de la RUL la plus probable (ie le map)
+                            'y': pred_prob[tv]['scores'].get_map().loc[d_test.index, 'map_1'].astype('float')
+                        },
+                        'exact': {
+                            'x': [i for i in range(len(d_test.index))],
+                            'y': d_test[tv]
+                        }
+
+                    }
+
                     self.ae_trajectories[tv][mae] = res[tv].loc[d_test.index]
 
                     self.result["mae"][tv].append(mae)
-
 
     def evaluate(self, data_test, pred_prob):
         self.data_test = data_test
@@ -957,29 +970,26 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
         self.evaluate_ae(data_test, pred_prob)
         self.evaluate_mae(data_test, pred_prob)
 
-
-
     ###############################################
     #                                             #
     #      ABSOLUTE ERROR VISUALISATIONS          #
     #                                             #
     ###############################################
 
-
     def plotly_specs_ae(self):
 
         fig_specs = {
-            'data': 
+            'data':
                 [
                     {
                         'x': self.result["ae"][tv].to_list(),
                         'type': 'histogram',
-                        #'marginal': 'box',
+                        # 'marginal': 'box',
                         'name': f"{tv}",
-                        'boxmean': 'sd', # represent mean and standard deviation
-                        'boxpoints': 'all', # can also be outliers, or suspectedoutliers, or False
-                        'jitter': 0.3, # add some jitter for a better separation between points
-                        'pointpos': -1.8 # relative position of points wrt box
+                        'boxmean': 'sd',  # represent mean and standard deviation
+                        'boxpoints': 'all',  # can also be outliers, or suspectedoutliers, or False
+                        'jitter': 0.3,  # add some jitter for a better separation between points
+                        'pointpos': -1.8  # relative position of points wrt box
                     }
                     for tv in self.variables
                 ],
@@ -1029,21 +1039,22 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
                     'mirror': True
                 }
 
-            }
+                }
         }
 
         return fig_specs
 
-
     def get_table_ae(self, app, tv):
-        
-        d_test_features = self.data_test.drop(labels=self.variables + self.group_by, axis=1)
+
+        d_test_features = self.data_test.drop(
+            labels=self.variables + self.group_by, axis=1)
         features_columns = d_test_features.columns
-        df_table = pd.concat([d_test_features, self.data_test[tv], pd.Series(self.result["ae"][tv]).round(3)], axis=1).reset_index()
+        df_table = pd.concat([d_test_features, self.data_test[tv], pd.Series(
+            self.result["ae"][tv]).round(3)], axis=1).reset_index()
         df_table.columns = df_table.columns[:-1].to_list() + ['AE']
 
         layout = [
-            
+
             dash_table.DataTable(
                 id='table-ae',
                 data=df_table.to_dict('records'),
@@ -1067,7 +1078,7 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
                 #             'delay': 180,
                 #             'duration': 10000
                 #         }
-                        
+
                 #         for col in df_table.columns
                 #     }
                 #     for i in range(len(df_table))
@@ -1076,7 +1087,8 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
             dcc.Checklist(
                 id='checkbox-show-columns-ae',
                 options=[
-                    {'label': 'Show features columns', 'value': 'show_features_columns'}
+                    {'label': 'Show features columns',
+                        'value': 'show_features_columns'}
                 ],
                 value=[]
             )
@@ -1101,7 +1113,7 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
                 [
                     dbc.Col(
                         html.Div(
-                            #TODO: rajouter un dropdown pour choisir la target variable
+                            # TODO: rajouter un dropdown pour choisir la target variable
                             self.get_table_ae(app, 'RUL')
                         ),
                         width=6
@@ -1126,7 +1138,7 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
     def plotly_hist_specs_mae(self, tv, mae):
 
         fig_specs = {
-            'data': 
+            'data':
                 [
                     {
                         'x': self.ae_trajectories[tv][mae],
@@ -1160,17 +1172,17 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
                     'linecolor': 'black',
                     'mirror': True
                 }
-            }
+                }
         }
 
         return fig_specs
 
     def plotly_scatter_specs_mae(self, tv, mae):
-        
+
         fig_specs = {
-            'data': 
+            'data':
                 [
-                    {   
+                    {
                         'x': self.plot_trajectories[tv][mae][name]['x'],
                         'y': self.plot_trajectories[tv][mae][name]['y'].to_list(),
                         'type': 'scatter',
@@ -1217,24 +1229,24 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
                     'mirror': True
                 }
 
-            }
+                }
         }
 
         return fig_specs
 
     def get_table_mae(self, app, tv):
-        
+
         df_table = pd.concat(
             [
-                #self.data_test.loc[:,self.group_by].unique(), 
+                # self.data_test.loc[:,self.group_by].unique(),
                 pd.Series(self.result["mae"][tv]).round(3)
-            ], 
+            ],
             axis=1
         ).reset_index()
         df_table.columns = df_table.columns[:-1].to_list() + ['MAE']
 
         layout = [
-            
+
             dash_table.DataTable(
                 id='table-mae',
                 data=df_table.to_dict('records'),
@@ -1255,22 +1267,23 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
 
         @app.callback(
             [Output("tv-hist-MAE", "children"),
-            Output("scatter-trajectory", "children")],
+             Output("scatter-trajectory", "children")],
             [Input('table-mae', 'active_cell'),
-            Input('table-mae', "page_current"),
-            Input('table-mae', "page_size")]
+             Input('table-mae', "page_current"),
+             Input('table-mae', "page_size")]
         )
         def render_graphs_mae(active_cell_dict, page_current, page_size):
-            
+
             if not(active_cell_dict is None or active_cell_dict['column_id'] != 'MAE'):
                 # current_index = self.data_test.index[0] + page_current*page_size + active_cell_dict['row']
-                current_index = page_current*page_size + active_cell_dict['row']
-                mae = df_table.loc[current_index, active_cell_dict['column_id']]
-                
+                current_index = page_current * \
+                    page_size + active_cell_dict['row']
+                mae = df_table.loc[current_index,
+                                   active_cell_dict['column_id']]
+
                 return dcc.Graph(figure=self.plotly_hist_specs_mae(tv, mae)), dcc.Graph(figure=self.plotly_scatter_specs_mae(tv, mae))
             else:
                 return [], []
-            
 
         return layout
 
@@ -1298,8 +1311,9 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
                     dbc.Row(
                         [
                             dbc.Col(id='table-mae-content',
-                                children=self.get_table_mae(app, self.variables[0])
-                            ),
+                                    children=self.get_table_mae(
+                                        app, self.variables[0])
+                                    ),
                         ]
                     ),
                     dbc.Row(
@@ -1314,7 +1328,7 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
                             )
                         ]
                     )
-                    
+
                 ]
             )
 
@@ -1328,8 +1342,6 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
 
         return layout
 
-
-
     def get_dash_layout(self, app):
 
         if self.group_by == []:
@@ -1337,34 +1349,23 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
         else:
             layout_content = \
                 dcc.Tabs(
-                        [
-                            dcc.Tab(
-                                label="Independent data",
-                                children=self.get_dash_layout_ae(app)
-                            ),
-                            dcc.Tab(
-                                label="Grouped data",
-                                children=self.get_dash_layout_mae(app)
-                            )
-                        ]
-                    )
+                    [
+                        dcc.Tab(
+                            label="Independent data",
+                            children=self.get_dash_layout_ae(app)
+                        ),
+                        dcc.Tab(
+                            label="Grouped data",
+                            children=self.get_dash_layout_mae(app)
+                        )
+                    ]
+                )
 
         layout = \
             html.Div(
-                [   
+                [
                     layout_content
                 ]
             )
 
         return layout
-    
-    
-
-
-    
-    
-
-
-    
-
-    
