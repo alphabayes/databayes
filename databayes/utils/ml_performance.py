@@ -158,6 +158,9 @@ class MLPerformance(pydantic.BaseModel):
         """Generator returning step by step the last training_sliding_window_size indexes of the training set
         and the first testing_sliding_window_size indexes of the testing set
 
+        Keywords arguments:
+        data_train_idx -- indexes of the data train set
+        data_test_idx -- indexes of the data test set
         """
 
         if self.fit_parameters.is_train_pct:

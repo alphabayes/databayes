@@ -546,7 +546,7 @@ class SuccessMeasure(PerformanceMeasureBase):
                             'bordercolor': "Black",
                             'borderwidth': 1},
                         'title': {
-                            'text': 'Success rates',
+                            'text': 'Indep',
                             'x': 0.5,
                             'xanchor': 'center',
                             'yanchor': 'top',
@@ -587,6 +587,10 @@ class SuccessMeasure(PerformanceMeasureBase):
         }
         }
         return fig_specs
+
+    ######################################
+    #  Affichage de la table des données #
+    ######################################
 
     def get_success_table_layout(self, app, tv):
 
@@ -746,6 +750,9 @@ class SuccessMeasure(PerformanceMeasureBase):
             else:
                 return []
 
+        ####################################################################################
+        #   Affichage de la table des prédictions après un clic sur la table des données   #
+        ####################################################################################
         @app.callback(
             Output("map-prob-bis-content", "children"),
             [Input('success-table-bis', 'active_cell'),
@@ -783,6 +790,9 @@ class SuccessMeasure(PerformanceMeasureBase):
         fig_indep_specs = self.plotly_indep_specs()
         fig_joint_specs = self.plotly_joint_specs()
 
+        #################################
+        #  Affichage de l'onglet GRAPHS #
+        #################################
         if len(self.variables) == 1:
 
             layout_graph_content = \
@@ -802,9 +812,9 @@ class SuccessMeasure(PerformanceMeasureBase):
                     ]),
                     dbc.Row(
                         html.Div(
-                            id='joint-graph',
-                            children=dcc.Graph(
-                                figure=go.Figure(fig_joint_specs))
+                            id='joint-graph', 
+                            children=dcc.Graph(figure=go.Figure(fig_joint_specs)),
+                            style={"width": "100%"}
                         )
                     )
                 ]
@@ -816,8 +826,11 @@ class SuccessMeasure(PerformanceMeasureBase):
                         [
                             dcc.Tab(label="Graphs",
                                     children=layout_graph_content
-                                    ),
+                                ),
 
+                            #################################
+                            #  Affichage de l'onglet DATA   #
+                            #################################
                             dcc.Tab(label="Data",
                                     children=[
                                         dcc.Dropdown(
@@ -1044,6 +1057,10 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
 
         return fig_specs
 
+    ####################################################################################
+    #  Affichage de la table donnant l'Absolute Error pour chaque ligne du jeu de test #
+    ####################################################################################
+
     def get_table_ae(self, app, tv):
 
         d_test_features = self.data_test.drop(
@@ -1062,27 +1079,18 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
                 page_size=15,
                 page_current=0,
                 style_cell={'textAlign': 'center'},
-                css=[{"selector": ".show-hide", "rule": "display: none"},  # hide toggle button
-                     {
-                    'selector': 'td.cell--selected, td.focused',
-                    'rule': 'background-color: grey !important;'  # background color of selected data
-                }, {
-                    'selector': 'td.cell--selected *, td.focused *',
-                    'rule': 'color: white !important;'  # text color of selected data
-                }],
-                # tooltip_data=[
-                #     {
-                #         col: {
-                #             'type': 'markdown',
-                #             'value': create_tooltip(i, col),
-                #             'delay': 180,
-                #             'duration': 10000
-                #         }
-
-                #         for col in df_table.columns
-                #     }
-                #     for i in range(len(df_table))
-                # ]
+                css=[
+                        {"selector": ".show-hide", "rule": "display: none"},  # hide toggle button
+                        {
+                        'selector': 'td.cell--selected, td.focused',
+                        'rule': 'background-color: grey !important;'  # background color of selected data
+                        }, 
+                        {
+                        'selector': 'td.cell--selected *, td.focused *',
+                        'rule': 'color: white !important;'  # text color of selected data
+                        }
+                    ],
+                
             ),
             dcc.Checklist(
                 id='checkbox-show-columns-ae',
@@ -1094,6 +1102,7 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
             )
         ]
 
+        #Check button to hide features in the table
         @app.callback(
             Output('table-ae', 'hidden_columns'),
             [Input('checkbox-show-columns-ae', 'value')]
@@ -1110,11 +1119,20 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
 
         layout = \
             html.Div(
-                [
+                [   
+                    dcc.Dropdown(
+                        id='tv-ae-dropdown',
+                        options=[
+                            {'label': f'Target variable = {tv}',
+                                'value': tv}
+                            for tv in self.variables
+                        ],
+                        value=self.variables[0]
+                    ),
                     dbc.Col(
                         html.Div(
-                            # TODO: rajouter un dropdown pour choisir la target variable
-                            self.get_table_ae(app, 'RUL')
+                            id="ae-table-content",
+                            children=self.get_table_ae(app, self.variables[0])
                         ),
                         width=6
                     ),
@@ -1126,6 +1144,15 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
                     )
                 ]
             )
+
+        #Dropdown to select target variable 
+        @app.callback(
+            Output("ae-table-content", "children"),
+            [Input('tv-ae-dropdown', 'value')]
+        )
+        def render_success_table_k(tv):
+            if not(tv is None):
+                return self.get_table_ae(app, tv)
 
         return layout
 
