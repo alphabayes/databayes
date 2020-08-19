@@ -621,9 +621,13 @@ class SuccessMeasure(PerformanceMeasureBase):
             [d_test_features, self.data_test[tv], success_first_k], axis=1).reset_index()
         df_table.columns = df_table.columns[:-1].to_list() + ['map_k']
 
+        # Inline definition of tooltip function
         def create_tooltip(i, col):
-            current_index = self.data_test.index[0] + i
+            # current_index = self.data_test.index[0] + i
+            # first_k = success_first_k.loc[current_index]
+            current_index = self.data_test.index[i]
             first_k = success_first_k.loc[current_index]
+
             if col == "map_k" and first_k != '-1':
 
                 col_map = f'map_{first_k}'
@@ -655,6 +659,7 @@ class SuccessMeasure(PerformanceMeasureBase):
                     Column: **{value}**.
                     '''.format(value=col)
                 )
+        # ---- End of tooltip function
 
         colorscale = [
             'rgb(0,68,27)',
@@ -762,8 +767,12 @@ class SuccessMeasure(PerformanceMeasureBase):
         def render_map_prob(active_cell_dict, page_current, page_size):
 
             if not(active_cell_dict is None):
-                current_index = self.data_test.index[0] + \
+                # current_index = self.data_test.index[0] + \
+                #     page_current*page_size + active_cell_dict['row']
+                table_cell_index_cur = \
                     page_current*page_size + active_cell_dict['row']
+                current_index = self.data_test.index[table_cell_index_cur]
+
                 table_length = min(max(self.map_k), len(pred_map_kmax.columns))
 
                 map_prob_table = pd.DataFrame(np.zeros((table_length, 2)), columns=[
@@ -812,8 +821,9 @@ class SuccessMeasure(PerformanceMeasureBase):
                     ]),
                     dbc.Row(
                         html.Div(
-                            id='joint-graph', 
-                            children=dcc.Graph(figure=go.Figure(fig_joint_specs)),
+                            id='joint-graph',
+                            children=dcc.Graph(
+                                figure=go.Figure(fig_joint_specs)),
                             style={"width": "100%"}
                         )
                     )
@@ -826,7 +836,7 @@ class SuccessMeasure(PerformanceMeasureBase):
                         [
                             dcc.Tab(label="Graphs",
                                     children=layout_graph_content
-                                ),
+                                    ),
 
                             #################################
                             #  Affichage de l'onglet DATA   #
@@ -1080,17 +1090,18 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
                 page_current=0,
                 style_cell={'textAlign': 'center'},
                 css=[
-                        {"selector": ".show-hide", "rule": "display: none"},  # hide toggle button
-                        {
+                    # hide toggle button
+                    {"selector": ".show-hide", "rule": "display: none"},
+                    {
                         'selector': 'td.cell--selected, td.focused',
                         'rule': 'background-color: grey !important;'  # background color of selected data
-                        }, 
-                        {
+                    },
+                    {
                         'selector': 'td.cell--selected *, td.focused *',
                         'rule': 'color: white !important;'  # text color of selected data
-                        }
-                    ],
-                
+                    }
+                ],
+
             ),
             dcc.Checklist(
                 id='checkbox-show-columns-ae',
@@ -1102,7 +1113,7 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
             )
         ]
 
-        #Check button to hide features in the table
+        # Check button to hide features in the table
         @app.callback(
             Output('table-ae', 'hidden_columns'),
             [Input('checkbox-show-columns-ae', 'value')]
@@ -1119,7 +1130,7 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
 
         layout = \
             html.Div(
-                [   
+                [
                     dcc.Dropdown(
                         id='tv-ae-dropdown',
                         options=[
@@ -1145,7 +1156,7 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
                 ]
             )
 
-        #Dropdown to select target variable 
+        # Dropdown to select target variable
         @app.callback(
             Output("ae-table-content", "children"),
             [Input('tv-ae-dropdown', 'value')]
