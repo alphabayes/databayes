@@ -1,5 +1,5 @@
 \chapter{Projet}
-
+\newpage
 \section{Organisation du projet}
 
 \begin{center}
@@ -168,7 +168,7 @@ Une forêt aléatoire est un algorithme combinant plusieurs arbres de décisions
 Les modèles \texttt{BayesianNetworkModel} et \texttt{RandomForestClassifier} s’intègrent parfaitement dans l’architecture de la chaîne de traitement. Cependant le modèle \texttt{MLPClassifier} a dû être adapté car il ne répondait pas parfaitement aux objectifs. En effet, les algorithmes de prédictions que l’on cherche à développer doivent pouvoir traiter des échantillons possédant plusieurs variables cibles, chacune possédant plusieurs labels (ce qui correspond à la classification \textit{multioutput-multiclass} décrite dans la doc. scikit-learn cf Table \ref{tab3}). La classe \texttt{RandomForestClassifier} appartient bien à cette classification, mais la classe \texttt{MLPClassifier} dépend de la classification \textit{multilabel}, c’est-à-dire que ce type de modèle ne fonctionne qu’avec des variables cibles ne possédant que deux labels lorsque le nombre de variables cibles est strictement supérieur à 1.
 
 \begin{center}
-\begin{tabular}{lp{2cm}p{2.5cm}}
+\begin{tabular}{lp{2.5cm}p{2.5cm}}
 \rowcolor[RGB]{200, 200, 200} & Nombre de variable cible & Cardinalité des variables cibles \\
 \hline
 Multiclass classification & 1 & $>$2 \\
