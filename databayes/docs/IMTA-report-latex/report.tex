@@ -1,0 +1,36 @@
+%!TEX TS-program = xelatex
+%!TEX encoding = UTF-8 Unicode
+
+\documentclass{IMTA-report}
+
+\begin{document}
+
+% the front matter
+\input{frontmatter/coverpage}
+\maketitle
+\copyrightpage
+\abstractpage
+\tableofcontents
+%\authorlist
+\listoffigures
+\acknowledgments
+
+\onehalfspacing
+
+% incluude each chapter...
+\include{chapters/presentation_entreprise}
+\include{chapters/mise_en_contexte}
+\include{chapters/projet}
+\include{chapters/apport_du_projet_et_evolution}
+\include{chapters/conclusion}
+
+\singlespacing
+
+% the back matter
+\clearpage
+\bibliography{references}
+\addcontentsline{toc}{chapter}{References}
+\bibliographystyle{plainnat}
+\include{endmatter/colophon}
+
+\end{document}
