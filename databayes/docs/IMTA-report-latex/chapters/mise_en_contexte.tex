@@ -1,0 +1,54 @@
+\begin{savequote}[75mm] 
+This is some random quote to start off the chapter.
+\qauthor{Firstname lastname} 
+\end{savequote}
+
+\chapter{Mise en contexte}
+
+\section{Origine du projet et enjeux}
+
+\subsection{Contexte de l'étude}
+
+Sur le réseau francilien, Paris et sa banlieue, la RATP exploite et maintient près de 5 000 bus. La maintenance est réalisée dans un peu plus de 25 centres bus répartis sur l’ensemble du territoire des lignes exploitées.
+Le département MRB en charge de la maintenance cherche à améliorer continuellement l’efficacité des opérations de maintenance. Un axe d’amélioration porte sur l’élaboration de recommandations visant à assister les mainteneurs dans leurs opérations de maintenance.
+Le département MRB souhaite également mutualiser l’expertise des mainteneurs. En effet, les mainteneurs des centres bus interviennent sur des matériels analogues sans pouvoir aisément bénéficier de l’expérience de leurs collègues situés sur les autres centres bus.
+Par ailleurs, le contexte du matériel bus évolue fortement avec l’acquisition de nombreux véhicules électriques. Cette situation conduit à une accélération du renouvellement du parc de véhicules. Pour assurer la bonne exploitation des véhicules, les mainteneurs doivent ainsi rapidement monter en expertise sur ces nouveaux véhicules.
+En 2019, EdgeMind répond à une demande de la RATP qui cherche à pouvoir effectuer efficacement un diagnostic de pannes de ses bus.
+
+
+\subsection{Objectif du projet}
+
+Le projet vise à développer un outil de recommandation des opérations de maintenance sur les bus. Le développement de l’outil repose sur la valorisation des données de GMAO (Gestion de Maintenance Assistée par Ordinateur) disponible au sein du département MRB.
+
+Le projet se décompose de la manière suivante :
+\begin{easylist}
+\ListProperties(Hide=100, Hang=true, Progressive=3ex, Style*=--)
+& ~exploitation et traitement des données ;
+& ~modélisation des recommandations ;
+& ~développement d’une application métier pour les utilisateurs finaux ;
+& ~expérimentation de l’outils sur plusieurs mois.
+\end{easylist}
+
+C’est dans ce contexte que EdgeMind a ensuite lancé le développement en R\&D d’un outil générique de machine learning spécifique au domaine de la maintenance afin d’enrichir ses propres outils de machine learning. L’étude de la RATP sera alors un cas d’usage permettant les tests de ces développements.
+
+
+\section{Problématique et mission}
+
+La problématique de ce stage de fin d’études est de créer une chaîne de traitement orientée machine learning pour faire du pronostic/diagnostic spécifiquement dans le domaine de la maintenance.
+
+Les différentes phases du projet à effectuer sont les suivantes:
+\begin{easylist}
+\ListProperties(Hide=100, Hang=true, Progressive=3ex, Style*=--)
+& ~Création d’un module générique de préparation de données
+& ~Ajout de différents type de modèle de machine learning (réseaux bayésiens, arbres de décisions (decision tree) , forêts aléatoires (random forests), réseaux de neurones, etc)
+& ~Développement d’un module d’évaluation de performance d’un modèle donné
+& ~Visualisation des indicateurs de performances
+\end{easylist}
+
+\section{Description des données GMAO Bus de la RATP}
+
+Tout au long des développements, les tests seront effectués sur la base de données GMAO de la RATP. L’étude est un problème de classification supervisée. 
+
+Les données de la base GMAO sont temporelles, i.e. les premières données sont les plus anciennes et les dernières données rentrées dans la base sont les plus récentes. Cela a son importance car il faudra prendre en compte dans les modèles que l’équipement matériel évolue très rapidement dans l’industrie, et cela influe donc forcément les types de maintenance à effectuer. Les problèmes liés à la maintenance en 2020 ne sont pas les mêmes qu’en 2010. Ainsi afin de bien prédire un type de maintenance, il faut s’intéresser aux données récentes.
+
+Par ailleurs ces données contiennent un vocabulaire spécifique que nous allons détailler ici. Tout d’abord, lorsqu'une anomalie est détectée sur un bus, le conducteur émet un \textbf{signalement} afin de noter les caractéristiques de cette anomalie. Les caractéristiques sont enregistrées dans la base de donnée GMAO. Ensuite, un ordre de travail (\textbf{OT}) est émis suite à ce signalement, lequel aboutira ou non à un ordre de maintenance (\textbf{ODM}). L’objectif de l’étude est alors de prédire les ODM à effectuer à partir des données de signalement et des caractéristiques du bus en question.

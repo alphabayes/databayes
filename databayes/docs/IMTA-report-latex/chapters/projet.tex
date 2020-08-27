@@ -1,0 +1,385 @@
+\chapter{Projet}
+
+\section{Organisation du projet}
+
+\begin{center}
+\includegraphics[scale=0.3]{figures/Rapport_GANTT.png}
+\captionof{figure}{Diagramme de GANTT}
+\label{fig1}
+\end{center}
+
+Les trois premières semaines du stage ont consisté à réaliser un état de l’art scientifique et technique sur les approches de modélisation probabiliste et en particulier sur le formalisme des réseaux bayésiens et leurs applications  dans le domaine du diagnostic/pronostic de pannes.
+
+Une seconde phase de mise à niveau technique a permi de se familiariser avec  l’écosystème Python pour la \textit{data science}. En particulier, les librairies utilisées dans les implémentations sont Pandas pour le traitement de données, Pyagrum pour la modélisation de réseaux bayésiens, Scikit-learn pour les  méthodes usuelles de \textit{machine learning}, Pytest pour effectuer des tests unitaires et enfin Pydantic pour la structuration et la lisibilité du code. L’ensemble des développements est effectué sous gestion de versions avec le logiciel Git.
+
+Durant le mois qui suit, une première version du module d’évaluation de performances et les premières visualisations ont été codées en appliquant les récentes connaissances acquises (en jaune sur la figure \ref{fig1}).
+Il s’ensuit une longue phase d’environ deux mois où le coeur du projet a été codé en se basant sur le framework déjà existant (en rouge sur le diagramme). En effet, EdgeMind avait déjà implémenté un début de structure de la chaîne de traitement.
+
+Puis un mois a été accordé à l’ajout de mesures de performance spécifiques au pronostic, et à l’ajout d’un module de comparaison de performance (en bleu).
+
+Enfin le projet s’est terminé par une phase de correction de bugs et de documentation afin de permettre la continuité du projet (en orange sur le diagramme).
+
+\section{Aperçu de la chaîne de diagnostic/pronostic}
+
+\begin{center}
+\includegraphics[scale=0.3]{figures/Bloc_diagram.png}
+\captionof{figure}{Diagramme par blocs}
+\label{fig2}
+\end{center}
+
+\section{Préparation des données}
+
+Avant de rentrer dans différents algorithmes de prédiction, il faut pouvoir assurer que les données sont conformes à ce que l’on souhaite. Plusieurs types d’action sont réalisées comme la mise en conformité des chaînes de caractère, le filtrage des données manquantes, la discrétisation des valeurs numériques pour certains algorithmes, la sélection de variables, etc.
+
+Il est également possible de construire de nouvelles variables explicatives à partir des données pour améliorer les prédictions (\textit{feature engineering}). 
+
+\section{Modélisation des algorithmes de classification supervisée}
+
+\subsection{Problématique}
+
+La classification supervisée [1] peut être définie de la façon suivante: étant données $n$ observations $\lbrace\vec{x}^{\:i}\rbrace_{i=1,...,n}$ décrites dans un espace $\mathcal{X}$ et leurs étiquettes $\lbrace y^{\:i}\rbrace_{i=1,...,n}$ associées décrites dans un espace $\mathcal{Y}$, on cherche alors, à partir des données, une fonction $f:\mathcal{X}\rightarrow\mathcal{Y}$ telle que $\forall(\vec{x},y)\in \mathcal{X}\times\mathcal{Y},\quad f(\vec{x})\approx y$
+
+\begin{center}
+\includegraphics[scale=0.8]{figures/apprentissage_supervise.png}
+\captionof{figure}{Apprentissage supervisé}
+\label{fig3}
+\end{center}
+
+\subsection{Architecture du module de machine learning}
+
+Afin de pouvoir garantir l’intégration de différents modèles de machine learning, une architecture de classes a été proposée et implémentée (cf. Figure \ref{fig4})
+
+\begin{center}
+\includegraphics[scale=0.3]{figures/diagramme_classe_ml.png}
+\captionof{figure}{Diagramme de classe des modèles de \textit{machine learning}}
+\label{fig4}
+\end{center}
+
+L'architecture proposée modélise une méthode de \textit{machine learning} sous forme d'une classe possédant :
+\begin{easylist}
+\ListProperties(Hide=100, Hang=true, Progressive=3ex, Style*=--)
+& ~des hyperparamètres pour initialiser la classe (e.g. nombre de couche pour un réseau de neurones, etc)
+& ~une méthode fit qui effectue l’apprentissage du modèle à partir d’un jeu de données d’entraînement
+& ~une méthode predict qui renvoie le résultat des prédictions à partir d’un jeu de données de test. Cette fonction “predict” renvoie un objet \texttt{DiscreteDistribution}, qui est une sous-classe de la classe pandas.DataFrame, dans lequel chaque colonne correspond à chaque label de la variable cible et chaque ligne représente une ligne du jeu de test contenant les différentes probabilités de prédire chaque label.
+\end{easylist}
+
+Pour compléter la chaîne de traitement, il faut pouvoir garantir la bonne étude des performances des différents modèles. Cela est fait dans le module d’évaluation de performances dont la modélisation en diagramme de classe est la suivante:
+
+\begin{center}
+\includegraphics[scale=0.3]{figures/diagramme_classe_perf.png}
+\captionof{figure}{Diagramme de classe du module de performance}
+\label{fig5}
+\end{center}
+
+\subsection{Exemple illustratif du fonctionnement de la chaîne de traitement}
+
+Imaginons que nous ayons le jeu de donnée suivant : 
+\begin{easylist}
+\ListProperties(Hide=100, Hang=true, Progressive=3ex, Style*=--)
+& ~une variable à prédire “METEO” avec pour labels “SOLEIL”, “PLUIE”, “NUAGEUX”
+& ~deux features (ou variables caractéristiques) “TEMP” (pour température) et “HUM” (pour humidité)
+\end{easylist}
+
+Un jeu de données type aurait cette forme là par exemple:
+
+\begin{center}
+\begin{tabular}{cccc}
+\rowcolor[RGB]{200, 200, 200}index & HUM & TEMP & METEO \\
+\hline
+1 & 50 & 18 & PLUIE \\
+2 & 5 & 27 & SOLEIL \\
+3 & 10 & 25 & SOLEIL \\
+4 & 70 & 15 & NUAGEUX
+
+\end{tabular}
+\captionof{table}{Jeu de données}
+\label{tab1}
+\end{center}
+
+L’utilisateur choisit un modèle ML et rentre ces données dans le modèle pour que s’effectuent la phase d’apprentissage suivie de la phase de prédiction.
+Ces données sont alors divisées en jeu de test (index 3 et 4) et en jeu d’entraînement (index 1 et 2). On entraîne le modèle avec le jeu d’entraînement et on prédit à partir du jeu de test.
+
+On aurait alors pour notre jeu de test de 2 lignes, une \texttt{DiscreteDistribution} de cette forme:
+
+\begin{center}
+\begin{tabular}{cccc}
+\rowcolor[RGB]{200, 200, 200}index & SOLEIL & PLUIE & NUAGEUX \\
+\hline
+3 & 0.5 & 0.2 & 0.3 \\
+4 & 0.3 & 0.3 & 0.4
+
+\end{tabular}
+\captionof{table}{\texttt{DiscreteDistribution}}
+\label{tab2}
+\end{center}
+
+Il faut ensuite choisir comment classifier à partir d’une \texttt{DiscreteDistribution}. Une stratégie classique de classification consiste à prendre le MAP (\textit{maximum a posteriori}) de cette distribution.
+
+Par exemple pour la ligne d'index 3 la prédiction la plus probable (i.e. le MAP) est “SOLEIL” et “NUAGEUX” pour la ligne d'index 4.
+
+\section{Implémentation de modèles ML}
+
+Comme le montre la Figure \ref{fig4}, trois modèles différents ont été implémentés. Un modèle regroupe différents algorithmes pour effectuer un apprentissage et des prédictions sur des données. Les deux algorithmes importants à implémenter dans chaque modèle sont donc la fonction d’apprentissage \textit{fit}  et la fonction de prédiction \textit{predict}.
+
+\subsection{Réseaux bayésiens}
+
+Un réseau bayésien [2] est un modèle graphique probabiliste représentant un ensemble de variables aléatoires sous la forme d'un graphe orienté acyclique. Les noeuds de ce graphe correspondent aux variables, tandis que les liens correspondent à des relations causales entre variables. Pour construire un réseau bayésien, il faut donc définir les différentes variables et les tables de probabilités conditionnelles pour chacune de ces variables. Si on a les variables aléatoires $(X_{i})_{i=1,...,n}$, alors la loi jointe du réseau s’écrit :
+$$P(X_{1}, ...,X_{n})= \prod_{X \in (X_{1}, ...,X_{n})} P(X|pa(X))$$
+où $pa(X)$ représente les parents immédiats de la variable aléatoire  dans le graphe.
+
+\begin{center}
+\includegraphics[scale=0.6]{figures/exemple_RB.png}
+\captionof{figure}{Exemple de modélisation graphique d’un réseau bayésien}
+\label{fig6}
+\end{center}
+
+Le classe \textbf{BayesianNetworkModel} (Figure \ref{fig4}) permet de construire de tels réseaux bayésiens. Les calculs probabilistes (inférence) sont effectués par  la librairie python PyAgrum dans la version actuelle des développements. Toutefois l’architecture offre une abstraction vis-à-vis de la méthode de calculs utilisées laissant ainsi la possibilité d’utiliser d’autres librairies de calcul ou d’implémenter ses propres algorithmes.
+
+\subsection{Réseaux de neurones}
+
+Le modèle choisi pour le réseau de neurone est la classe \textbf{MLPClassifier} (\textit{multi layer perceptron}) de la librairie scikit-learn. 
+
+La construction de ce réseau est la suivante:
+\begin{easylist}
+\ListProperties(Hide=100, Hang=true, Progressive=3ex, Style*=--)
+& ~une couche \textit{input} contenant les valeurs des différentes \textit{features}. Cette couche ne prend en entrée que des valeurs numériques. Si les données des \textit{features} sont des chaînes de caractères, il faut modifier ces valeurs en données numériques au préalable.
+& ~un certain nombre de couche cachées contenant chacune le nombre de neurones que l’on souhaite
+& ~une couche de sortie, qui correspond à la variable cible, contenant autant de neurones que cette variable cible n’a de labels. En sortie, chaque neurone se verra attribuer un score entre 0 et 1 selon la fonction d’activation \textit{softmax}. On peut interpréter ce score en terme de probabilité. Ainsi on peut considérer que cette sortie est une \texttt{DiscreteDistribution}.
+\end{easylist}
+
+\begin{center}
+\includegraphics[scale=0.5]{figures/exemple_MLP.png}
+\captionof{figure}{Exemple de MLP contenant une couche cachée}
+\label{fig7}
+\end{center}
+
+\subsection{Forêts aléatoires}
+
+Une forêt aléatoire est un algorithme combinant plusieurs arbres de décisions afin d’effectuer des prédictions plus fines qu’un arbre de décision seul. Le modèle choisi est la classe \textbf{RandomForestClassifier} de la librairie scikit-learn.
+
+\begin{center}
+\includegraphics[scale=0.25]{figures/exemple_RF.png}
+\captionof{figure}{Schéma forêt aléatoire}
+\label{fig8}
+\end{center}
+
+\subsection{Adaptation à la chaîne de traitement}
+
+Les modèles \texttt{BayesianNetworkModel} et \texttt{RandomForestClassifier} s’intègrent parfaitement dans l’architecture de la chaîne de traitement. Cependant le modèle \texttt{MLPClassifier} a dû être adapté car il ne répondait pas parfaitement aux objectifs. En effet, les algorithmes de prédictions que l’on cherche à développer doivent pouvoir traiter des échantillons possédant plusieurs variables cibles, chacune possédant plusieurs labels (ce qui correspond à la classification \textit{multioutput-multiclass} décrite dans la doc. scikit-learn cf Table \ref{tab3}). La classe \texttt{RandomForestClassifier} appartient bien à cette classification, mais la classe \texttt{MLPClassifier} dépend de la classification \textit{multilabel}, c’est-à-dire que ce type de modèle ne fonctionne qu’avec des variables cibles ne possédant que deux labels lorsque le nombre de variables cibles est strictement supérieur à 1.
+
+\begin{center}
+\begin{tabular}{lp{2cm}p{2.5cm}}
+\rowcolor[RGB]{200, 200, 200} & Nombre de variable cible & Cardinalité des variables cibles \\
+\hline
+Multiclass classification & 1 & $>$2 \\
+Multilabel classification & $>$1 & 2 (0 ou 1) \\
+Multioutput regression & $>$1 & Continu \\
+Multioutput-multiclass classification & $>$1 & $>$2
+
+\end{tabular}
+\captionof{table}{Types de classification scikit-learn}
+\label{tab3}
+\end{center}
+
+Cependant si le modèle \texttt{MLPClassifier} ne contient qu’une seule variable cible, tout fonctionne alors avec plusieurs labels (ou classes). On contourne alors le problème en créant autant de modèle que de variables cibles et on effectue l’apprentissage et la prédiction pour chacun des modèles (cela rajoute forcément de la complexité en temps).
+
+C’est pour ces raisons de classifications \textit{multilabel} et \textit{multioutput-multiclass} qu’il a été choisi de créer les classes parentes \textbf{MLSklearnClassifierModelBinaryLabel} et \textbf{MLSklearnClassifierModelMultiLabel} (Figure \ref{fig4}) pour bien distinguer les cas.
+
+\section{Évaluation des performances d’un modèle}
+
+\subsection{Description de la classe MLPerformance}
+
+Une fois différents modèles ML implémentés, il faut pouvoir mesurer les performances en termes de prévision de ces derniers . Pour ce faire, la classe \texttt{MLPerformance} a été implémentée (cf. Figure \ref{fig5}). Cette classe gère le calcul de différentes mesures de performance pour un jeu de données particulier et un certain paramétrage du modèle.
+
+La classe \texttt{MLPerformance} comprend plusieurs variables d’instance:
+\begin{easylist}
+\ListProperties(Hide=100, Hang=true, Progressive=3ex, Style*=--)
+& ~le modèle ML à étudier
+& ~les paramètres d’apprentissage 
+& ~les différentes mesures de performances à calculer avec les paramètres associés au calcul de ces mesures
+\end{easylist}
+
+Muni d’un jeu de donnée, la classe \texttt{MLPerformance} se charge ensuite de lancer automatiquement successivement les phases de séparation des données en jeu de test et d'entraînement,  d’apprentissage sur le jeu d’entraînement, de prédiction sur le jeu de test puis de calcul des différentes mesures de performances à partir des \texttt{DiscreteDistribution} obtenues après prédiction.
+
+\subsection{Mécanisme d’évaluation séquentiel}
+
+La phase de séparation des données ne consiste pas uniquement à séparer les données en un unique jeu d'entraînement et jeu de test. On a vu au sous-chapitre 4.3 que les données étaient ordonnées temporellement et que l’équipement matériel était sujet à des évolutions rapides. Ainsi il semble intéressant de créer des jeux de données “glissants” sur l’ensemble des données, i.e. des données utilisées dans le jeu de test à l’itération i servent ensuite au jeu d'entraînement à l’itération i+1, ainsi on effectue une validation des données de tests en s’appuyant uniquement sur l’apprentissage des données les plus récentes. Les paramètres initialisant les tailles des fenêtres glissantes d’apprentissage et de test sont stockés dans les paramètres d’apprentissage de la classe \texttt{MLPerformance}.
+
+\begin{center}
+\includegraphics[scale=0.25]{figures/Sliding_split.png}
+\captionof{figure}{Exemple d'apprentissage glissant sur les données}
+\label{fig9}
+\end{center}
+
+\section{Mesures de performance}
+
+\subsection{Abstraction}
+
+Une mesure de performance est implémentée au moyen d’une classe abstraite \texttt{PerformanceMeasureBase}. Celle-ci possède:
+\begin{easylist}
+\ListProperties(Hide=100, Hang=true, Progressive=3ex, Style*=--)
+& ~une variable \textit{result} permettant de stocker les résultats de la mesure
+& ~une méthode \textit{evaluate} qui renvoie ces résultats
+\end{easylist}
+
+Toutes les mesures listées ci-dessous hérite de cette classe abstraite.  
+
+\subsection{Mesure de succès}
+
+La première manière la plus intuitive de mesurer la performance d’un modèle dans le cadre d’une classification (i.e. variables cibles catégorielles) est de calculer son taux de succès ou justesse. Le succès est défini comme une bonne prédiction pour la variable cible.
+
+\begin{center}
+\includegraphics[scale=0.6]{figures/justesse.png}
+\end{center}
+
+Comme illustré sur la Figure \ref{fig5}, cette mesure de succès est implémentée  dans la classe \texttt{SuccessMeasure}. Cette dernière prend deux paramètres:
+\begin{easylist}
+\ListProperties(Hide=100, Hang=true, Progressive=3ex, Style*=--)
+& ~ \textit{map$\_$k}
+& ~ \textit{spread$\_$threshold}
+\end{easylist}
+
+Le paramètre \textit{map$\_$k} permet de considérer les \textit{k} labels les plus probables suite à la prédiction (i.e. les \textit{k} maximum-a-posteriori). Par défaut, \textit{map$\_$k} est une liste ne contenant que l’entier 1, il n’est considéré alors que le maximum-a-posteriori, mais il est très bien possible d'ajouter différentes valeurs de \textit{k} dans les paramètres pour ainsi considérer les \textit{k} labels les plus probables. On définit donc un succès de la prédiction pour un entier \textit{k} donné du \textit{map$\_$k}, si pour une ligne du jeu de donnée, la valeur à prédire se trouve parmi les \textit{k} labels les plus probables. Logiquement, le taux de succès sur l’ensemble du jeu de donnée de test augmente quand la valeur de \textit{k} croît.
+
+\begin{center}
+\includegraphics[scale=0.4]{figures/rapport_success_rate.png}
+\captionof{figure}{Taux de succès pour \textit{map$\_$k} = [1,2,3,5,10] sur le jeu de donnée de la RATP}
+\label{fig10}
+\end{center}
+
+Le paramètre \textit{spread$\_$threshold} permet quant à lui de définir un seuil d’acceptation d’une prédiction. On redéfinit le succès tel qu’étant donné un entier k du \textit{map$\_$k}, on considère la prédiction comme un succès si la valeur à prédire se trouve parmi les k labels les plus probables et si le pourcentage de marge entre la probabilité du label le plus probable et la probabilité du k-ème label le plus probable est inférieur au \textit{spread$\_$threshold}. Par défaut, le \textit{spread$\_$threshold} est égal à 1, ce qui signifie que l’on acceptera comme étant un succès toute valeur à prédire se trouvant parmi les k labels les plus probables. Ce paramètre permet de ne considérer que les succès où la valeur prédite était un minimum probable. Par exemple, si la valeur à prédire pour l’index 1 de notre jeu de donnée est SOLEIL et que notre fonction \textit{predict} nous renvoie la \texttt{DiscreteDistribution} suivante,
+
+\begin{center}
+\begin{tabular}{cccc}
+\rowcolor[RGB]{200, 200, 200}index & SOLEIL & PLUIE & NUAGEUX \\
+\hline
+1 & 0.04 & 0.95 & 0.01
+
+\end{tabular}
+\end{center}
+
+il pourrait être absurde de considérer un succès pour une valeur de k égal à 2 car l’écart en pourcentage entre 0.95 et 0.04 est très élevé (=0.9579). C’est pour cela qu’avec un \textit{spread$\_$threshold} = 0.2 par exemple et k = 2, on considérerait un échec de la prédiction car 0.9579 $>$ 0.2.
+
+\texttt{SuccessMeasure} possède aussi un argument result hérité de la classe abstraite \texttt{PerformanceMeasureBase} qui sert à stocker les résultats de la mesure. Dans le cas de \texttt{SuccessMeasure}, \textit{result} est un dictionnaire contenant les trois clés “indep”, “aggreg” et “joint”.
+La valeur associée à la clé “indep” correspond aux différents taux de succès pour chaque k appartenant à \textit{map$\_$k} et pour chaque variable cible.
+La valeur associée à la clé “aggreg” correspond pour chaque k au nombre moyen de variable cible que l’on prédit à chaque ligne.
+La valeur associée à la clé “joint” correspond au taux de bonne prédiction pour chaque combinaison de variables cibles sachant que les autres variables cibles n’ont pas été prédites (par exemple sur la Figure \ref{fig11}, le taux de bonne prédiction de la variable FONCTION$\_$NIV2 sachant que ODM$\_$LIBELLE n’est pas prédit est de 0.5, et le taux de bonne prédiction de la combinaison ODM$\_$LIBELLE - FONCTION$\_$NIV2 sachant que les autres variables, ici aucune, ne sont pas prédites est de 0.27).
+
+\begin{center}
+\includegraphics[scale=0.25]{figures/visu_success.png}
+\captionof{figure}{Visualisations interactive associées à la mesure de succès}
+\label{fig11}
+\end{center}
+
+\subsection{Matrice de confusion}
+
+Une matrice de confusion est une matrice de taille \textit{n x n} où \textit{n} est le nombre de labels de la variable cible en question. La case d’indice \textit{(i,j)} contient alors le nombre de fois que l’on a prédit le \textit{i}-ème label alors que le label à prédire est le \textit{j}-ième. Les cases d’indices \textit{(i,i)} correspondent à des cas de bonnes prédictions.
+
+\begin{center}
+\includegraphics[scale=0.45]{figures/confusion_matrix.png}
+\captionof{figure}{Exemple de matrice de confusion pour une variable cible à huit labels}
+\label{fig12}
+\end{center}
+
+La matrice de confusion peut être assez illisible si on veut afficher des matrices de variables possédant un grand nombre de labels possibles comme c’est le cas pour notre exemple avec la base de données gmao de la RATP dont une des variables cibles possède 1400 labels.
+
+\subsection{Mesure \textit{Absolute Error}}
+
+La mesure d’erreur absolue (\textit{Absolute Error}, en anglais) est définie pour les variables cibles numériques (sous forme de valeurs points ou d’intervalles). On calcule alors l’erreur absolue pour chaque ligne du jeu de donnée de test entre la valeur à prédire et une valeur prédite.
+$$\Delta x_{i} = |x_{i}-x^{\star}_{i}|$$
+avec $x_{i}$ la valeur dépendante de la prédiction i et $x^{\star}_{i}$ la valeur réelle
+
+Le calcul de $x_{i}$ dépend en fait de la méthode de calcul utilisée. La classe comprend donc un paramètre \textit{calculation$\_$method} qui vaut soit \textit{eap} (pour esperance a posteriori), soit \textit{map} (pour maximum a posteriori). Si \textit{calculation$\_$method} = eap, alors $x_{i}$ est égal à la moyenne des labels (qui sont les nombres possibles que peut prendre la variable; on travaille uniquement avec des variables catégorielles) pondérés par les probabilités de la \texttt{DiscreteDistribution} obtenue d’après la fonction \textit{predict}. Ainsi on prend en compte la probabilité de chaque label. Si \textit{calculation$\_$method} = map, on prend $x_{i}$ égal au label le plus probable. Par défaut, \textit{calculation$\_$method} = \textit{eap}.
+
+Si jamais un argument \textit{group$\_$by} a été donné, on calcule également la MAE (\textit{Mean Absolute Error}) sur les données groupées. Dans le cadre du projet, la MAE n’a de sens que pour des données spécifiques au pronostic. 
+$$MAE = \frac{1}{n}\sum_{i=1}^{n}|x_{i}-x|=\frac{1}{n}\sum_{i=1}^{n}\Delta x_{i}$$
+où $n$ est le nombre de données dans le jeu de test
+
+Le pronostic se distingue du diagnostic dans le sens où l’objectif du diagnostic est de pouvoir prédire le type d’intervention à effectuer sur un système, alors que l’objectif du pronostic est de prédire la RUL (\textit{Remaining Useful Life}) ou temps de vie restant d’un système. 
+L’objectif pour un modèle performant est donc de minimiser la MAE afin que la trajectoire prédite de la RUL pour un système donné coïncide au plus avec la trajectoire correspondante des données de test. Ci-dessous, on remarque sans trop de mal que la trajectoire prédite est bien loin de la trajectoire à prédire.
+
+\begin{center}
+\includegraphics[scale=0.45]{figures/system_trajectory.png}
+\captionof{figure}{Trajectoire système avec en ordonnée la RUL et en abscisse le temps}
+\label{fig13}
+\end{center}
+
+\subsection{Création de nouvelles mesures}
+
+L’architecture de la chaîne de traitement permet de facilement implémenter de nouvelles mesures de performance, et ce sera certainement une piste d’ouverture pour la continuité du projet. Un extrait d’un article de Saxena [3] permet de montrer quelles mesures pourraient être implémentées. En voici un exemple avec la \textit{Mean Absolute Percentage Error} (MAPE):
+$$MAPE =\frac{1}{n}\sum_{i=1}^{n} \left \lvert \frac{100\Delta x_{i}}{x^{\star}_{i}} \right \rvert $$
+
+\section{Sélection des variables pour l’apprentissage}
+
+Pour améliorer la précision des prédictions et pour accélérer la phase d’apprentissage, il peut être judicieux de se restreindre à un nombre limité de variables explicatives (ou \textit{features} en anglais), c’est ce qu’on appelle classiquement en \textit{machine learning} une méthode de réduction de la dimensionnalité. En effet, des redondances dans les données peuvent engendrer des problèmes au moment de l’apprentissage, comme le sur-apprentissage (ou \textit{overfitting} en anglais) par exemple.
+
+Pour cela deux types de méthodes ont été implémentées : 
+\begin{enumerate}
+\item les méthodes de filtrage qui sélectionnent des variables indépendamment du modèle utilisé. Elles ne se basent que sur les corrélations entre les \textit{features} et les variables cibles. Leur principal avantage est qu’elles sont particulièrement efficace en terme de complexité temporelle.
+\item les méthodes par encapsulation (\textit{wrapper method}) qui testent des sous-ensembles de \textit{features} sur le modèle, i.e. il faut faire un apprentissage du modèle pour chaque sous-ensemble que l’on veut tester. Ces méthodes sont plus précises mais elles sont beaucoup plus coûteuses en temps. Si on a $n$ variables et que l’on veut tester tous les sous-ensembles possibles, il faudrait faire $2^{n}$ phases d’apprentissage. La complexité étant exponentielle, on se limite en pratique à un nombre réduit de sous-ensembles à tester.
+\end{enumerate}
+
+Les deux méthodes de filtrage qui ont été ajoutées sont:
+\begin{easylist}
+\ListProperties(Hide=100, Hang=true, Progressive=3ex, Style*=--)
+& ~FCBF (\textit{Fast Correlation-Based Filter}) [4]
+& ~ReliefF (une amélioration de l’algorithme Relief) [5] 
+\end{easylist}
+
+La méthode d’encapsulation (\textit{wrapper method}) implémentée consiste quant à elle à tester l’impact de la suppression de chaque variable explicative, on a ainsi une complexité de l’ordre du nombre de variables.
+
+\begin{center}
+\includegraphics[scale=0.55]{figures/diagramme_classe_select.png}
+\captionof{figure}{Diagramme de classe du module de sélection de variables}
+\label{fig14}
+\end{center}
+
+\section{Visualisations et création d’une application dash}
+
+Les visualisations sont gérées pour chaque composant de la chaîne de traitement. Cette structure permet alors de générer efficacement et automatiquement toutes les briques à visualiser comme les visualisations interactives des mesures de performance. On peut alors facilement imbriquer ces composants élémentaires pour obtenir un \textit{dashboard} complet. L’application est codée à l’aide de la librairie plotly et plus particulièrement grâce à la fonctionnalité dash de plotly.
+
+A ce jour la plus grosse brique regroupant tous les composants est le module de comparaison de performances entre plusieurs modèles. C’est ce qui est présenté dans le schéma ci-dessous.
+
+\begin{center}
+\includegraphics[scale=0.55]{figures/schema_app.png}
+\captionof{figure}{Schéma du \textit{dashboard}}
+\label{fig15}
+\end{center}
+
+A gauche la barre de navigation est décomposée en trois parties: la première partie compare les modèles selon une mesure donnée, la deuxième affiche les performances de chaque modèle, tandis que la troisième partie récapitule les paramètres de chaque modèle. Nous allons voir les différentes visualisations pour chaque partie ci-dessous.
+
+\subsection{Partie \textit{MODELS COMPARISON}}
+
+\begin{center}
+\includegraphics[scale=0.25]{figures/app_comparison.png}
+\captionof{figure}{}
+\label{fig16}
+\end{center}
+
+Sur la Figure \ref{fig16}, on est dans l’onglet \textit{Success} de \textit{Models Comparison}, on observe alors le taux de succès de chaque modèle pour une variable cible donnée. Toutes les mesures de performances se trouvent dans la partie \textit{MODELS COMPARISON}. Et il est donc possible de comparer les différents modèles selon la mesure souhaitée.
+
+\subsection{Partie \textit{ML PERFORMANCE MODELS}}
+
+\begin{center}
+\includegraphics[scale=0.25]{figures/app_models.png}
+\captionof{figure}{}
+\label{fig17}
+\end{center}
+
+Sur la Figure \ref{fig17} est affiché la visualisation relative à un modèle de la fenêtre \textit{ML Performance Models}. On retrouve en haut chaque onglet qui correspond à une mesure de performance, ici nous sommes dans l’onglet \textit{Success}. Juste en dessous de cette barre d’onglet, on affiche la brique permettant de visualiser la mesure \textit{Success}. Dans cette brique, il y a une autre barre d’onglet avec d’un côté les différents graphes (Figure \ref{fig17}) et de l’autre les données du jeu de test avec les prédictions probabilistes (Figure \ref{fig18}).
+
+\begin{center}
+\includegraphics[scale=0.25]{figures/app_models_table.png}
+\captionof{figure}{}
+\label{fig18}
+\end{center}
+
+\subsection{Partie \textit{MODELS SPECS}}
+
+Enfin comme montré sur la Figure \ref{fig19}, on affiche les différents paramètres du modèle sélectionné dans la fenêtre \textit{Models Specs}.
+
+\begin{center}
+\includegraphics[scale=0.30]{figures/app_specs.png}
+\captionof{figure}{}
+\label{fig19}
+\end{center}
