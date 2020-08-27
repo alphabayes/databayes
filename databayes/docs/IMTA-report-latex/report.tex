@@ -16,7 +16,17 @@
 
 \onehalfspacing
 
-% incluude each chapter...
+% REM RD : Suggestion de forme qui irait bien pour ton rapport à mon avis.
+% - Tu as 5 chapitres qui ressemblent plus à des "parties", i.e. des éléments assez indépendants
+% - => Je te suggère donc de faire 3 parties :
+%      1. Prensentation entreprise
+%      2. Projet
+%         - Tu peux à mon avis fusionner 2.1, 2.2, 2.3, 3.1 dans un chapitre "Mise en contexte"
+%         - Ensuite tu transormes tes sections 3.x 2<=x<=9 en Chapitre
+%      3. Apport du projet (en y incluant la conclusion)
+% Tu peux faire des parties en LaTeX avec la commande \part{Nom de la partie} cf. exemple dans projet.tex
+
+% include each chapter...
 \include{chapters/presentation_entreprise}
 \include{chapters/mise_en_contexte}
 \include{chapters/projet}

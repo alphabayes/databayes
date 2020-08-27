@@ -1,12 +1,7 @@
-\chapter{Projet}
-\newpage
-\section{Organisation du projet}
+\part{Le projet}
 
-\begin{center}
-\includegraphics[scale=0.3]{figures/Rapport_GANTT.png}
-\captionof{figure}{Diagramme de GANTT}
-\label{fig1}
-\end{center}
+\chapter{Projet}
+\section{Organisation du projet}
 
 Les trois premières semaines du stage ont consisté à réaliser un état de l’art scientifique et technique sur les approches de modélisation probabiliste et en particulier sur le formalisme des réseaux bayésiens et leurs applications  dans le domaine du diagnostic/pronostic de pannes.
 
@@ -19,17 +14,41 @@ Puis un mois a été accordé à l’ajout de mesures de performance spécifique
 
 Enfin le projet s’est terminé par une phase de correction de bugs et de documentation afin de permettre la continuité du projet (en orange sur le diagramme).
 
+% REM RD :
+% - N'hésite pas à encapsuler tes figures dans un bloc "figure" pour avoir accès à des options de
+% placement plus riche, cf. exemple ci-dessous.
+\begin{figure}
+  \centering
+  \includegraphics[scale=0.3]{figures/Rapport_GANTT.png}
+  \captionof{figure}{Diagramme de GANTT}
+  \label{fig1}
+  % REM RD: Je te conseille de ne pas utiliser des labels incluant une notion d'ordre, e.g. fig1 car
+  % LaTeX permet précisément de ne pas s'occuper de cela. Il vaut mieux privilégier des labels faisant
+  % référence au contenu de l'élément référencé, e.g. ici "fig1" pourrait devenir "diagramme_gantt"
+\end{figure}
+
+% Astuce pour afficher ton diagramme de gantt pas trop loin du texte
+\clearpage
+
 \section{Aperçu de la chaîne de diagnostic/pronostic}
 
+% REM RD: Là, il faudrait un petit texte introductif à mon avis
+
 \begin{center}
-\includegraphics[scale=0.3]{figures/Bloc_diagram.png}
-\captionof{figure}{Diagramme par blocs}
-\label{fig2}
+  % REM RD :
+  % Tu peux utiliser la largeur de la page pour caler tes figures plus facilement
+  \includegraphics[width=0.8\textwidth]{figures/Bloc_diagram.png}
+  \captionof{figure}{Diagramme par blocs}
+  \label{fig2}
 \end{center}
 
 \section{Préparation des données}
+% REM RD : si tu choisis de faire des parties et donc de transformer cette section en chapitre, ça
+% risque de faire un peu léger.
+% À mon avis, tu peux faire inclure ce paragraphe dans le chapitre précédent où tu présente l'aperçu
+% de la chaîne et expliquant rapidement cette phase de préparation de données.
 
-Avant de rentrer dans différents algorithmes de prédiction, il faut pouvoir assurer que les données sont conformes à ce que l’on souhaite. Plusieurs types d’action sont réalisées comme la mise en conformité des chaînes de caractère, le filtrage des données manquantes, la discrétisation des valeurs numériques pour certains algorithmes, la sélection de variables, etc.
+Avant de mettre en oeuvre, différents algorithmes de prédiction, il faut pouvoir assurer que les données sont conformes à ce que l’on souhaite. Plusieurs types d’action sont réalisées comme la mise en conformité des chaînes de caractère, le filtrage des données manquantes, la discrétisation des valeurs numériques pour certains algorithmes, la sélection de variables, etc.
 
 Il est également possible de construire de nouvelles variables explicatives à partir des données pour améliorer les prédictions (\textit{feature engineering}). 
 
@@ -50,7 +69,8 @@ La classification supervisée [1] peut être définie de la façon suivante: ét
 Afin de pouvoir garantir l’intégration de différents modèles de machine learning, une architecture de classes a été proposée et implémentée (cf. Figure \ref{fig4})
 
 \begin{center}
-\includegraphics[scale=0.3]{figures/diagramme_classe_ml.png}
+  % REM RD : N'hésite pas à agrandir tes diagrammes au max
+\includegraphics[width=0.9\textwidth]{figures/diagramme_classe_ml.png}
 \captionof{figure}{Diagramme de classe des modèles de \textit{machine learning}}
 \label{fig4}
 \end{center}
@@ -60,9 +80,14 @@ L'architecture proposée modélise une méthode de \textit{machine learning} sou
 \ListProperties(Hide=100, Hang=true, Progressive=3ex, Style*=--)
 & ~des hyperparamètres pour initialiser la classe (e.g. nombre de couche pour un réseau de neurones, etc)
 & ~une méthode fit qui effectue l’apprentissage du modèle à partir d’un jeu de données d’entraînement
-& ~une méthode predict qui renvoie le résultat des prédictions à partir d’un jeu de données de test. Cette fonction “predict” renvoie un objet \texttt{DiscreteDistribution}, qui est une sous-classe de la classe pandas.DataFrame, dans lequel chaque colonne correspond à chaque label de la variable cible et chaque ligne représente une ligne du jeu de test contenant les différentes probabilités de prédire chaque label.
+& ~une méthode predict qui renvoie le résultat des prédictions à partir d’un jeu de données de test. Cette fonction “predict” renvoie un objet \texttt{DiscreteDistribution}, qui est une sous-classe de la classe \texttt{pandas.DataFrame}, dans lequel chaque colonne correspond à chaque label de la variable cible et chaque ligne représente une ligne du jeu de test contenant les différentes probabilités de prédire chaque label.
 \end{easylist}
 
+
+% REM RD:
+% - Plutôt parler des performances dans la partie dédiée à l'évaluation des performances
+% - Tu par contre faire une référence vers le chapitre d'évaluation des performances dans cette
+% section si cela te semble pertinent.
 Pour compléter la chaîne de traitement, il faut pouvoir garantir la bonne étude des performances des différents modèles. Cela est fait dans le module d’évaluation de performances dont la modélisation en diagramme de classe est la suivante:
 
 \begin{center}
@@ -71,12 +96,14 @@ Pour compléter la chaîne de traitement, il faut pouvoir garantir la bonne étu
 \label{fig5}
 \end{center}
 
+% REM RD: Perso, j'aurais plutôt appelé cette section Exemple d'utilisation de la classe \texttt{MLModel}
 \subsection{Exemple illustratif du fonctionnement de la chaîne de traitement}
 
 Imaginons que nous ayons le jeu de donnée suivant : 
 \begin{easylist}
 \ListProperties(Hide=100, Hang=true, Progressive=3ex, Style*=--)
 & ~une variable à prédire “METEO” avec pour labels “SOLEIL”, “PLUIE”, “NUAGEUX”
+% REM RD: on parle plutôt de variables explicatives
 & ~deux features (ou variables caractéristiques) “TEMP” (pour température) et “HUM” (pour humidité)
 \end{easylist}
 
@@ -117,26 +144,41 @@ Il faut ensuite choisir comment classifier à partir d’une \texttt{DiscreteDis
 
 Par exemple pour la ligne d'index 3 la prédiction la plus probable (i.e. le MAP) est “SOLEIL” et “NUAGEUX” pour la ligne d'index 4.
 
+% REM RD: Titre un peu sec à mon avis.
+% Il faudrait quelque chose du genre "Implémentation d'algorithmes de machine learning dans le
+% framework" mais en plus cours :)
 \section{Implémentation de modèles ML}
 
 Comme le montre la Figure \ref{fig4}, trois modèles différents ont été implémentés. Un modèle regroupe différents algorithmes pour effectuer un apprentissage et des prédictions sur des données. Les deux algorithmes importants à implémenter dans chaque modèle sont donc la fonction d’apprentissage \textit{fit}  et la fonction de prédiction \textit{predict}.
 
+% REM RD: Je reviens sur ma proposition ultérieure consistant à faire deux sous-sections par modèle
+% décrit :
+% 1. Présentation formelle de la technique avec explication et un chouille de théorie + exemple
+% 2. Implémentation dans le framework
+
 \subsection{Réseaux bayésiens}
 
-Un réseau bayésien [2] est un modèle graphique probabiliste représentant un ensemble de variables aléatoires sous la forme d'un graphe orienté acyclique. Les noeuds de ce graphe correspondent aux variables, tandis que les liens correspondent à des relations causales entre variables. Pour construire un réseau bayésien, il faut donc définir les différentes variables et les tables de probabilités conditionnelles pour chacune de ces variables. Si on a les variables aléatoires $(X_{i})_{i=1,...,n}$, alors la loi jointe du réseau s’écrit :
+% REM RD : Pour la biblio, utilise \cite{label} mais tu trouveras des tonnes d'aide sur le net pour ça.
+Un réseau bayésien [2] est un modèle graphique probabiliste représentant un ensemble de variables
+aléatoires sous la forme d'un graphe orienté acyclique. Les noeuds de ce graphe correspondent aux
+variables, tandis que les liens correspondent à des relations entre variables. Pour construire un
+réseau bayésien, il faut donc définir les différentes variables et les tables de probabilités
+conditionnelles pour chacune de ces variables sachant leurs parents dans le graphe. Si on a les variables aléatoires $(X_{i})_{i=1,...,n}$, alors la loi jointe du réseau s’écrit :
 $$P(X_{1}, ...,X_{n})= \prod_{X \in (X_{1}, ...,X_{n})} P(X|pa(X))$$
-où $pa(X)$ représente les parents immédiats de la variable aléatoire  dans le graphe.
+où $pa(X)$ représente les parents immédiats de la variable aléatoire $X$ dans le graphe.
 
+% REM RD: Sauf erreur de ma part, tu ne fais pas référence à la fig6 dans le texte. Si tu donnes un
+% exemple, il faut que tu le détailles un minimum (quitte à ce que ce soit fait en annexe).
 \begin{center}
 \includegraphics[scale=0.6]{figures/exemple_RB.png}
 \captionof{figure}{Exemple de modélisation graphique d’un réseau bayésien}
 \label{fig6}
 \end{center}
 
-Le classe \textbf{BayesianNetworkModel} (Figure \ref{fig4}) permet de construire de tels réseaux bayésiens. Les calculs probabilistes (inférence) sont effectués par  la librairie python PyAgrum dans la version actuelle des développements. Toutefois l’architecture offre une abstraction vis-à-vis de la méthode de calculs utilisées laissant ainsi la possibilité d’utiliser d’autres librairies de calcul ou d’implémenter ses propres algorithmes.
+Le classe \textbf{BayesianNetworkModel} (Figure \ref{fig4}) permet de construire de tels réseaux bayésiens. Les calculs probabilistes (inférence) sont effectués par  la librairie \texttt{Python} \texttt{PyAgrum} dans la version actuelle des développements. Toutefois l’architecture offre une abstraction vis-à-vis de la méthode de calculs utilisées laissant ainsi la possibilité d’utiliser d’autres librairies de calcul ou d’implémenter ses propres algorithmes.
 
 \subsection{Réseaux de neurones}
-
+% REM RD: Il manque la partie où on explique ce qu'est un RN
 Le modèle choisi pour le réseau de neurone est la classe \textbf{MLPClassifier} (\textit{multi layer perceptron}) de la librairie scikit-learn. 
 
 La construction de ce réseau est la suivante:
@@ -163,13 +205,19 @@ Une forêt aléatoire est un algorithme combinant plusieurs arbres de décisions
 \label{fig8}
 \end{center}
 
+% REM RD: Il manque la partie où on explique l'implémentation de RF
+
+% REM RD: Utilise plutôt "framework de modélisation" à la place de "chaîne de traitements"
+% La chaîne de traitements correspond à l'ensemble des briques de traitements allant du nettoyage
+% des données à l'évaluation des perf en passant par la modélisation.
 \subsection{Adaptation à la chaîne de traitement}
 
+% REM RD: Partie à relire et adapter légèrement pour la rendre plus rapport-compatible
 Les modèles \texttt{BayesianNetworkModel} et \texttt{RandomForestClassifier} s’intègrent parfaitement dans l’architecture de la chaîne de traitement. Cependant le modèle \texttt{MLPClassifier} a dû être adapté car il ne répondait pas parfaitement aux objectifs. En effet, les algorithmes de prédictions que l’on cherche à développer doivent pouvoir traiter des échantillons possédant plusieurs variables cibles, chacune possédant plusieurs labels (ce qui correspond à la classification \textit{multioutput-multiclass} décrite dans la doc. scikit-learn cf Table \ref{tab3}). La classe \texttt{RandomForestClassifier} appartient bien à cette classification, mais la classe \texttt{MLPClassifier} dépend de la classification \textit{multilabel}, c’est-à-dire que ce type de modèle ne fonctionne qu’avec des variables cibles ne possédant que deux labels lorsque le nombre de variables cibles est strictement supérieur à 1.
 
 \begin{center}
 \begin{tabular}{lp{2.5cm}p{2.5cm}}
-\rowcolor[RGB]{200, 200, 200} & Nombre de variable cible & Cardinalité des variables cibles \\
+\rowcolor[RGB]{200, 200, 200} & Nombre de variables cibles & Cardinalité des variables cibles \\
 \hline
 Multiclass classification & 1 & $>$2 \\
 Multilabel classification & $>$1 & 2 (0 ou 1) \\
@@ -183,6 +231,7 @@ Multioutput-multiclass classification & $>$1 & $>$2
 
 Cependant si le modèle \texttt{MLPClassifier} ne contient qu’une seule variable cible, tout fonctionne alors avec plusieurs labels (ou classes). On contourne alors le problème en créant autant de modèle que de variables cibles et on effectue l’apprentissage et la prédiction pour chacun des modèles (cela rajoute forcément de la complexité en temps).
 
+% REM RD: je ne conseille pas le changement soudain de style en gras
 C’est pour ces raisons de classifications \textit{multilabel} et \textit{multioutput-multiclass} qu’il a été choisi de créer les classes parentes \textbf{MLSklearnClassifierModelBinaryLabel} et \textbf{MLSklearnClassifierModelMultiLabel} (Figure \ref{fig4}) pour bien distinguer les cas.
 
 \section{Évaluation des performances d’un modèle}
@@ -212,6 +261,12 @@ La phase de séparation des données ne consiste pas uniquement à séparer les 
 \end{center}
 
 \section{Mesures de performance}
+% REM RD: Si tu optes pour la structure en parties
+% Je conseille de ne pas faire un chapitre pour "Mesures de performance" mais d'inclure cette
+% section dans le chapitre "Évaluation des performances"
+
+% REM RD:
+% - Peut-être faire une petite phrase introductive
 
 \subsection{Abstraction}
 
@@ -273,7 +328,10 @@ La valeur associée à la clé “joint” correspond au taux de bonne prédicti
 
 \subsection{Matrice de confusion}
 
-Une matrice de confusion est une matrice de taille \textit{n x n} où \textit{n} est le nombre de labels de la variable cible en question. La case d’indice \textit{(i,j)} contient alors le nombre de fois que l’on a prédit le \textit{i}-ème label alors que le label à prédire est le \textit{j}-ième. Les cases d’indices \textit{(i,i)} correspondent à des cas de bonnes prédictions.
+Une matrice de confusion est une matrice de taille \textit{n x n} où \textit{n} est le nombre de
+labels de la variable cible en question. L'élément d’indice \textit{(i,j)} correspond alors au
+nombre de fois que l’on a prédit le \textit{i}-ème label alors que le label à prédire est le
+\textit{j}-ième. Les éléments d’indices \textit{(i,i)} correspondent aux cas de bonnes prédictions.
 
 \begin{center}
 \includegraphics[scale=0.45]{figures/confusion_matrix.png}
@@ -287,8 +345,10 @@ La matrice de confusion peut être assez illisible si on veut afficher des matri
 
 La mesure d’erreur absolue (\textit{Absolute Error}, en anglais) est définie pour les variables cibles numériques (sous forme de valeurs points ou d’intervalles). On calcule alors l’erreur absolue pour chaque ligne du jeu de donnée de test entre la valeur à prédire et une valeur prédite.
 $$\Delta x_{i} = |x_{i}-x^{\star}_{i}|$$
-avec $x_{i}$ la valeur dépendante de la prédiction i et $x^{\star}_{i}$ la valeur réelle
+avec $x_{i}$ la valeur de la prédiction i et $x^{\star}_{i}$ la valeur réelle.
 
+% REM RD : Je renouvelle mon conseil d'introduire formellement les notions de EAP et MAP au début du
+% chapitre, par exemple là où tu expliques ce qu'est l'apprentissage supervisé.
 Le calcul de $x_{i}$ dépend en fait de la méthode de calcul utilisée. La classe comprend donc un paramètre \textit{calculation$\_$method} qui vaut soit \textit{eap} (pour esperance a posteriori), soit \textit{map} (pour maximum a posteriori). Si \textit{calculation$\_$method} = eap, alors $x_{i}$ est égal à la moyenne des labels (qui sont les nombres possibles que peut prendre la variable; on travaille uniquement avec des variables catégorielles) pondérés par les probabilités de la \texttt{DiscreteDistribution} obtenue d’après la fonction \textit{predict}. Ainsi on prend en compte la probabilité de chaque label. Si \textit{calculation$\_$method} = map, on prend $x_{i}$ égal au label le plus probable. Par défaut, \textit{calculation$\_$method} = \textit{eap}.
 
 Si jamais un argument \textit{group$\_$by} a été donné, on calcule également la MAE (\textit{Mean Absolute Error}) sur les données groupées. Dans le cadre du projet, la MAE n’a de sens que pour des données spécifiques au pronostic. 
@@ -310,7 +370,10 @@ L’architecture de la chaîne de traitement permet de facilement implémenter d
 $$MAPE =\frac{1}{n}\sum_{i=1}^{n} \left \lvert \frac{100\Delta x_{i}}{x^{\star}_{i}} \right \rvert $$
 
 \section{Sélection des variables pour l’apprentissage}
+% REM RD: Franchement, je pense que cette section a sa place avant la partie
+% modélisation/apprentissage mais c'est toi qui voit.
 
+% REM RD: Attention cohérence, tu expliques déjà que features==variables explicative précédemment.
 Pour améliorer la précision des prédictions et pour accélérer la phase d’apprentissage, il peut être judicieux de se restreindre à un nombre limité de variables explicatives (ou \textit{features} en anglais), c’est ce qu’on appelle classiquement en \textit{machine learning} une méthode de réduction de la dimensionnalité. En effet, des redondances dans les données peuvent engendrer des problèmes au moment de l’apprentissage, comme le sur-apprentissage (ou \textit{overfitting} en anglais) par exemple.
 
 Pour cela deux types de méthodes ont été implémentées : 
@@ -336,38 +399,57 @@ La méthode d’encapsulation (\textit{wrapper method}) implémentée consiste q
 
 \section{Visualisations et création d’une application dash}
 
-Les visualisations sont gérées pour chaque composant de la chaîne de traitement. Cette structure permet alors de générer efficacement et automatiquement toutes les briques à visualiser comme les visualisations interactives des mesures de performance. On peut alors facilement imbriquer ces composants élémentaires pour obtenir un \textit{dashboard} complet. L’application est codée à l’aide de la librairie plotly et plus particulièrement grâce à la fonctionnalité dash de plotly.
+Les visualisations sont gérées au niveau de chaque composant de la chaîne de traitements en suivant
+un formalisme spécifique. Cette architecture
+permet alors d'orchestrer efficacement et automatiquement la création de tableaux bords
+(\textit{dashboard}) composés de différentes visualisations interactives (e.g. mesures de
+performance, comparaison de modèles, etc.). L’application est codée à l’aide de la librairie \texttt{plotly} et plus particulièrement grâce à la fonctionnalité dash de plotly.
 
-A ce jour la plus grosse brique regroupant tous les composants est le module de comparaison de performances entre plusieurs modèles. C’est ce qui est présenté dans le schéma ci-dessous.
+À ce jour la plus grosse brique regroupant tous les composants est le module de comparaison de
+performances entre plusieurs modèles.
+% REM RD: Utilise une référence à une Figure
+C’est ce qui est présenté dans le schéma ci-dessous.
 
+
+% REM RD: Titre de la figure
 \begin{center}
 \includegraphics[scale=0.55]{figures/schema_app.png}
 \captionof{figure}{Schéma du \textit{dashboard}}
 \label{fig15}
 \end{center}
 
-A gauche la barre de navigation est décomposée en trois parties: la première partie compare les modèles selon une mesure donnée, la deuxième affiche les performances de chaque modèle, tandis que la troisième partie récapitule les paramètres de chaque modèle. Nous allons voir les différentes visualisations pour chaque partie ci-dessous.
+% REM RD: Je te conseille d'utiliser une liste d'items.
+La barre de navigation sur la gauche est décomposée en trois parties: la première partie compare les modèles selon une mesure donnée, la deuxième affiche les performances de chaque modèle, tandis que la troisième partie récapitule les paramètres de chaque modèle. Nous allons voir les différentes visualisations pour chaque partie ci-dessous.
 
 \subsection{Partie \textit{MODELS COMPARISON}}
 
+% REM RD: Titre de la figure
 \begin{center}
 \includegraphics[scale=0.25]{figures/app_comparison.png}
 \captionof{figure}{}
 \label{fig16}
 \end{center}
 
+% REM RD: Formulation à améliorer un peu. e.g. La Figure \ref{fig16} présente <bla bla>.
 Sur la Figure \ref{fig16}, on est dans l’onglet \textit{Success} de \textit{Models Comparison}, on observe alors le taux de succès de chaque modèle pour une variable cible donnée. Toutes les mesures de performances se trouvent dans la partie \textit{MODELS COMPARISON}. Et il est donc possible de comparer les différents modèles selon la mesure souhaitée.
 
 \subsection{Partie \textit{ML PERFORMANCE MODELS}}
 
+% REM RD: Titre de la figure ici nous sommes dans l’onglet \textit{Success}.
 \begin{center}
 \includegraphics[scale=0.25]{figures/app_models.png}
 \captionof{figure}{}
 \label{fig17}
 \end{center}
 
-Sur la Figure \ref{fig17} est affiché la visualisation relative à un modèle de la fenêtre \textit{ML Performance Models}. On retrouve en haut chaque onglet qui correspond à une mesure de performance, ici nous sommes dans l’onglet \textit{Success}. Juste en dessous de cette barre d’onglet, on affiche la brique permettant de visualiser la mesure \textit{Success}. Dans cette brique, il y a une autre barre d’onglet avec d’un côté les différents graphes (Figure \ref{fig17}) et de l’autre les données du jeu de test avec les prédictions probabilistes (Figure \ref{fig18}).
+% REM RD: peut-être utiliser un autre terme que "brique". Par exemple "espace dédié à l'affichage de
+% <tel truc>"
+Sur la Figure \ref{fig17} est affichée la visualisation relative à un modèle de la fenêtre
+\textit{ML Performance Models}. On retrouve dans la partie supérieure des onglets correspondant à
+une mesure de performance.
+Juste en dessous de cette barre d’onglet, on affiche la brique permettant de visualiser la mesure \textit{Success}. Dans cette brique, il y a une autre barre d’onglet avec d’un côté les différents graphes (Figure \ref{fig17}) et de l’autre les données du jeu de test avec les prédictions probabilistes (Figure \ref{fig18}).
 
+% REM RD: Titre de la figure
 \begin{center}
 \includegraphics[scale=0.25]{figures/app_models_table.png}
 \captionof{figure}{}
