@@ -1,8 +1,4 @@
-\begin{savequote}[75mm] 
-This is some random quote to start off the chapter.
-\qauthor{Firstname lastname} 
-\end{savequote}
-
+\part{Le projet}
 \chapter{Mise en contexte}
 
 \section{Origine du projet et enjeux}
@@ -33,7 +29,7 @@ C’est dans ce contexte que EdgeMind a ensuite lancé le développement en R\&D
 
 
 \section{Problématique et mission}
-
+\label{modules}
 La problématique de ce stage de fin d’études est de créer une chaîne de traitement orientée machine learning pour faire du pronostic/diagnostic spécifiquement dans le domaine de la maintenance.
 
 Les différentes phases du projet à effectuer sont les suivantes:
@@ -49,6 +45,6 @@ Les différentes phases du projet à effectuer sont les suivantes:
 
 Tout au long des développements, les tests seront effectués sur la base de données GMAO de la RATP. L’étude est un problème de classification supervisée. 
 
-Les données de la base GMAO sont temporelles, i.e. les premières données sont les plus anciennes et les dernières données rentrées dans la base sont les plus récentes. Cela a son importance car il faudra prendre en compte dans les modèles que l’équipement matériel évolue très rapidement dans l’industrie, et cela influe donc forcément les types de maintenance à effectuer. Les problèmes liés à la maintenance en 2020 ne sont pas les mêmes qu’en 2010. Ainsi afin de bien prédire un type de maintenance, il faut s’intéresser aux données récentes.
+Les données de la base GMAO sont temporelles, i.e. les premières données sont les plus anciennes et les dernières données rentrées dans la base sont les plus récentes. Cela a son importance car il faudra prendre en compte dans les modèles que l’équipement matériel évolue très rapidement dans l’industrie, et cela influe donc forcément les types de maintenance à effectuer. Les problèmes liés à la maintenance en 2020 ne sont pas les mêmes qu’en 2010. Ainsi afin de bien prédire un type de maintenance, il faut s’intéresser aux données récentes.\label{temp_data}
 
 Par ailleurs ces données contiennent un vocabulaire spécifique que nous allons détailler ici. Tout d’abord, lorsqu'une anomalie est détectée sur un bus, le conducteur émet un \textbf{signalement} afin de noter les caractéristiques de cette anomalie. Les caractéristiques sont enregistrées dans la base de donnée GMAO. Ensuite, un ordre de travail (\textbf{OT}) est émis suite à ce signalement, lequel aboutira ou non à un ordre de maintenance (\textbf{ODM}). L’objectif de l’étude est alors de prédire les ODM à effectuer à partir des données de signalement et des caractéristiques du bus en question.

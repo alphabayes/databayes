@@ -1,13 +1,12 @@
-\part{Le projet}
-
-\chapter{Projet}
+\chapter{Modélisation et organisation du projet}
+\clearpage
 \section{Organisation du projet}
 
 Les trois premières semaines du stage ont consisté à réaliser un état de l’art scientifique et technique sur les approches de modélisation probabiliste et en particulier sur le formalisme des réseaux bayésiens et leurs applications  dans le domaine du diagnostic/pronostic de pannes.
 
 Une seconde phase de mise à niveau technique a permi de se familiariser avec  l’écosystème Python pour la \textit{data science}. En particulier, les librairies utilisées dans les implémentations sont Pandas pour le traitement de données, Pyagrum pour la modélisation de réseaux bayésiens, Scikit-learn pour les  méthodes usuelles de \textit{machine learning}, Pytest pour effectuer des tests unitaires et enfin Pydantic pour la structuration et la lisibilité du code. L’ensemble des développements est effectué sous gestion de versions avec le logiciel Git.
 
-Durant le mois qui suit, une première version du module d’évaluation de performances et les premières visualisations ont été codées en appliquant les récentes connaissances acquises (en jaune sur la figure \ref{fig1}).
+Durant le mois qui suit, une première version du module d’évaluation de performances et les premières visualisations ont été codées en appliquant les récentes connaissances acquises (en jaune sur la figure \ref{diagramme_gantt}).
 Il s’ensuit une longue phase d’environ deux mois où le coeur du projet a été codé en se basant sur le framework déjà existant (en rouge sur le diagramme). En effet, EdgeMind avait déjà implémenté un début de structure de la chaîne de traitement.
 
 Puis un mois a été accordé à l’ajout de mesures de performance spécifiques au pronostic, et à l’ajout d’un module de comparaison de performance (en bleu).
@@ -19,12 +18,9 @@ Enfin le projet s’est terminé par une phase de correction de bugs et de docum
 % placement plus riche, cf. exemple ci-dessous.
 \begin{figure}
   \centering
-  \includegraphics[scale=0.3]{figures/Rapport_GANTT.png}
+  \includegraphics[width=1\textwidth]{figures/Rapport_GANTT.png}
   \captionof{figure}{Diagramme de GANTT}
-  \label{fig1}
-  % REM RD: Je te conseille de ne pas utiliser des labels incluant une notion d'ordre, e.g. fig1 car
-  % LaTeX permet précisément de ne pas s'occuper de cela. Il vaut mieux privilégier des labels faisant
-  % référence au contenu de l'élément référencé, e.g. ici "fig1" pourrait devenir "diagramme_gantt"
+  \label{diagramme_gantt}
 \end{figure}
 
 % Astuce pour afficher ton diagramme de gantt pas trop loin du texte
@@ -33,13 +29,15 @@ Enfin le projet s’est terminé par une phase de correction de bugs et de docum
 \section{Aperçu de la chaîne de diagnostic/pronostic}
 
 % REM RD: Là, il faudrait un petit texte introductif à mon avis
+La modélisation de la chaîne de traitement comporte les quatre modules présentés dans la section \ref{modules}. En voici le schéma par blocs :
+
 
 \begin{center}
   % REM RD :
   % Tu peux utiliser la largeur de la page pour caler tes figures plus facilement
-  \includegraphics[width=0.8\textwidth]{figures/Bloc_diagram.png}
+  \includegraphics[width=1\textwidth]{figures/Bloc_diagram.png}
   \captionof{figure}{Diagramme par blocs}
-  \label{fig2}
+  \label{bloc_diagramme}
 \end{center}
 
 \section{Préparation des données}
@@ -48,31 +46,58 @@ Enfin le projet s’est terminé par une phase de correction de bugs et de docum
 % À mon avis, tu peux faire inclure ce paragraphe dans le chapitre précédent où tu présente l'aperçu
 % de la chaîne et expliquant rapidement cette phase de préparation de données.
 
-Avant de mettre en oeuvre, différents algorithmes de prédiction, il faut pouvoir assurer que les données sont conformes à ce que l’on souhaite. Plusieurs types d’action sont réalisées comme la mise en conformité des chaînes de caractère, le filtrage des données manquantes, la discrétisation des valeurs numériques pour certains algorithmes, la sélection de variables, etc.
+\subsection{Filtrage}
 
-Il est également possible de construire de nouvelles variables explicatives à partir des données pour améliorer les prédictions (\textit{feature engineering}). 
+Avant de mettre en oeuvre différents algorithmes de prédiction, il faut pouvoir assurer que les données sont conformes à ce que l’on souhaite. Plusieurs types d’action sont réalisées comme la mise en conformité des chaînes de caractère, le filtrage des données manquantes, la discrétisation des valeurs numériques pour certains algorithmes, etc.
 
-\section{Modélisation des algorithmes de classification supervisée}
+Il est également possible de construire de nouvelles variables explicatives à partir des données pour améliorer les prédictions (\textit{feature engineering}).
 
-\subsection{Problématique}
+\subsection{Sélection des variables}
+
+Pour améliorer la précision des prédictions et pour accélérer la phase d’apprentissage, il peut être judicieux de se restreindre à un nombre limité de variables explicatives (ou \textit{features} en anglais), c’est ce qu’on appelle classiquement en \textit{machine learning} une méthode de réduction de la dimensionnalité. En effet, des redondances dans les données peuvent engendrer des problèmes au moment de l’apprentissage, comme le sur-apprentissage (ou \textit{overfitting} en anglais) par exemple.
+
+Pour cela deux types de méthodes ont été implémentées : 
+\begin{enumerate}
+\item les méthodes de filtrage qui sélectionnent des variables indépendamment du modèle utilisé. Elles ne se basent que sur les corrélations entre les \textit{features} et les variables cibles. Leur principal avantage est qu’elles sont particulièrement efficace en terme de complexité temporelle.
+\item les méthodes par encapsulation (\textit{wrapper method}) qui testent des sous-ensembles de \textit{features} sur le modèle, i.e. il faut faire un apprentissage du modèle pour chaque sous-ensemble que l’on veut tester. Ces méthodes sont plus précises mais elles sont beaucoup plus coûteuses en temps. Si on a $n$ variables et que l’on veut tester tous les sous-ensembles possibles, il faudrait faire $2^{n}$ phases d’apprentissage. La complexité étant exponentielle, on se limite en pratique à un nombre réduit de sous-ensembles à tester.
+\end{enumerate}
+
+Les deux méthodes de filtrage qui ont été ajoutées sont:
+\begin{easylist}
+\ListProperties(Hide=100, Hang=true, Progressive=3ex, Style*=--)
+& ~FCBF (\textit{Fast Correlation-Based Filter}) [4]
+& ~ReliefF (une amélioration de l’algorithme Relief) [5] 
+\end{easylist}
+
+La méthode d’encapsulation (\textit{wrapper method}) implémentée consiste quant à elle à tester l’impact de la suppression de chaque variable explicative, on a ainsi une complexité de l’ordre du nombre de variables.
+
+\begin{center}
+\includegraphics[width=0.8\textwidth]{figures/diagramme_classe_select.png}
+\captionof{figure}{Diagramme de classe du module de sélection de variables}
+\label{fig14}
+\end{center}
+
+\chapter{Modélisation des algorithmes de classification supervisée}
+\clearpage
+\section{Problématique}
 
 La classification supervisée [1] peut être définie de la façon suivante: étant données $n$ observations $\lbrace\vec{x}^{\:i}\rbrace_{i=1,...,n}$ décrites dans un espace $\mathcal{X}$ et leurs étiquettes $\lbrace y^{\:i}\rbrace_{i=1,...,n}$ associées décrites dans un espace $\mathcal{Y}$, on cherche alors, à partir des données, une fonction $f:\mathcal{X}\rightarrow\mathcal{Y}$ telle que $\forall(\vec{x},y)\in \mathcal{X}\times\mathcal{Y},\quad f(\vec{x})\approx y$
 
 \begin{center}
-\includegraphics[scale=0.8]{figures/apprentissage_supervise.png}
+\includegraphics[width=0.8\textwidth]{figures/apprentissage_supervise.png}
 \captionof{figure}{Apprentissage supervisé}
 \label{fig3}
 \end{center}
 
-\subsection{Architecture du module de machine learning}
+\section{Architecture du module de machine learning}
 
-Afin de pouvoir garantir l’intégration de différents modèles de machine learning, une architecture de classes a été proposée et implémentée (cf. Figure \ref{fig4})
+Afin de pouvoir garantir l’intégration de différents modèles de machine learning, une architecture de classes a été proposée et implémentée (cf. Figure \ref{diag_classe_ml})
 
 \begin{center}
   % REM RD : N'hésite pas à agrandir tes diagrammes au max
-\includegraphics[width=0.9\textwidth]{figures/diagramme_classe_ml.png}
+\includegraphics[width=1\textwidth]{figures/diagramme_classe_ml.png}
 \captionof{figure}{Diagramme de classe des modèles de \textit{machine learning}}
-\label{fig4}
+\label{diag_classe_ml}
 \end{center}
 
 L'architecture proposée modélise une méthode de \textit{machine learning} sous forme d'une classe possédant :
@@ -83,21 +108,7 @@ L'architecture proposée modélise une méthode de \textit{machine learning} sou
 & ~une méthode predict qui renvoie le résultat des prédictions à partir d’un jeu de données de test. Cette fonction “predict” renvoie un objet \texttt{DiscreteDistribution}, qui est une sous-classe de la classe \texttt{pandas.DataFrame}, dans lequel chaque colonne correspond à chaque label de la variable cible et chaque ligne représente une ligne du jeu de test contenant les différentes probabilités de prédire chaque label.
 \end{easylist}
 
-
-% REM RD:
-% - Plutôt parler des performances dans la partie dédiée à l'évaluation des performances
-% - Tu par contre faire une référence vers le chapitre d'évaluation des performances dans cette
-% section si cela te semble pertinent.
-Pour compléter la chaîne de traitement, il faut pouvoir garantir la bonne étude des performances des différents modèles. Cela est fait dans le module d’évaluation de performances dont la modélisation en diagramme de classe est la suivante:
-
-\begin{center}
-\includegraphics[scale=0.3]{figures/diagramme_classe_perf.png}
-\captionof{figure}{Diagramme de classe du module de performance}
-\label{fig5}
-\end{center}
-
-% REM RD: Perso, j'aurais plutôt appelé cette section Exemple d'utilisation de la classe \texttt{MLModel}
-\subsection{Exemple illustratif du fonctionnement de la chaîne de traitement}
+\section{Exemple d'utilisation de la classe \texttt{MLModel}}
 
 Imaginons que nous ayons le jeu de donnée suivant : 
 \begin{easylist}
@@ -147,16 +158,16 @@ Par exemple pour la ligne d'index 3 la prédiction la plus probable (i.e. le MAP
 % REM RD: Titre un peu sec à mon avis.
 % Il faudrait quelque chose du genre "Implémentation d'algorithmes de machine learning dans le
 % framework" mais en plus cours :)
-\section{Implémentation de modèles ML}
+\chapter{Implémentation d'algorithmes ML}
 
-Comme le montre la Figure \ref{fig4}, trois modèles différents ont été implémentés. Un modèle regroupe différents algorithmes pour effectuer un apprentissage et des prédictions sur des données. Les deux algorithmes importants à implémenter dans chaque modèle sont donc la fonction d’apprentissage \textit{fit}  et la fonction de prédiction \textit{predict}.
+Comme le montre la Figure \ref{diag_classe_ml}, trois modèles différents ont été implémentés. Un modèle regroupe différents algorithmes pour effectuer un apprentissage et des prédictions sur des données. Les deux algorithmes importants à implémenter dans chaque modèle sont donc la fonction d’apprentissage \textit{fit}  et la fonction de prédiction \textit{predict}.
 
 % REM RD: Je reviens sur ma proposition ultérieure consistant à faire deux sous-sections par modèle
 % décrit :
 % 1. Présentation formelle de la technique avec explication et un chouille de théorie + exemple
 % 2. Implémentation dans le framework
-
-\subsection{Réseaux bayésiens}
+\clearpage
+\section{Réseaux bayésiens}
 
 % REM RD : Pour la biblio, utilise \cite{label} mais tu trouveras des tonnes d'aide sur le net pour ça.
 Un réseau bayésien [2] est un modèle graphique probabiliste représentant un ensemble de variables
@@ -170,15 +181,19 @@ où $pa(X)$ représente les parents immédiats de la variable aléatoire $X$ dan
 % REM RD: Sauf erreur de ma part, tu ne fais pas référence à la fig6 dans le texte. Si tu donnes un
 % exemple, il faut que tu le détailles un minimum (quitte à ce que ce soit fait en annexe).
 \begin{center}
-\includegraphics[scale=0.6]{figures/exemple_RB.png}
+\includegraphics[width=0.6\textwidth]{figures/exemple_RB.png}
 \captionof{figure}{Exemple de modélisation graphique d’un réseau bayésien}
 \label{fig6}
 \end{center}
 
-Le classe \textbf{BayesianNetworkModel} (Figure \ref{fig4}) permet de construire de tels réseaux bayésiens. Les calculs probabilistes (inférence) sont effectués par  la librairie \texttt{Python} \texttt{PyAgrum} dans la version actuelle des développements. Toutefois l’architecture offre une abstraction vis-à-vis de la méthode de calculs utilisées laissant ainsi la possibilité d’utiliser d’autres librairies de calcul ou d’implémenter ses propres algorithmes.
+Par exemple dans la Figure \ref{fig6}, la variable Accident a deux parents, Expérience Opérateur et Complexité Machine.
 
-\subsection{Réseaux de neurones}
+Le classe \textbf{BayesianNetworkModel} (Figure \ref{fig4}) permet de construire de tels réseaux bayésiens. Les calculs probabilistes (inférence) sont effectués par  la librairie \texttt{Python} \texttt{PyAgrum} dans la version actuelle des développements. Toutefois l’architecture offre une abstraction vis-à-vis de la méthode de calculs utilisées laissant ainsi la possibilité d’utiliser d’autres librairies de calcul ou d’implémenter ses propres algorithmes.
+\clearpage
+\section{Réseaux de neurones}
 % REM RD: Il manque la partie où on explique ce qu'est un RN
+Un réseau de neurones informatiques s'inspire du fonctionnement du cerveau humain en tentant de recréer la complexité de ce dernier. Il est constitué de plusieurs couches de neurones reliés entre eux. 
+
 Le modèle choisi pour le réseau de neurone est la classe \textbf{MLPClassifier} (\textit{multi layer perceptron}) de la librairie scikit-learn. 
 
 La construction de ce réseau est la suivante:
@@ -190,17 +205,17 @@ La construction de ce réseau est la suivante:
 \end{easylist}
 
 \begin{center}
-\includegraphics[scale=0.5]{figures/exemple_MLP.png}
+\includegraphics[width=0.5\textwidth]{figures/exemple_MLP.png}
 \captionof{figure}{Exemple de MLP contenant une couche cachée}
 \label{fig7}
 \end{center}
 
-\subsection{Forêts aléatoires}
+\section{Forêts aléatoires}
 
 Une forêt aléatoire est un algorithme combinant plusieurs arbres de décisions afin d’effectuer des prédictions plus fines qu’un arbre de décision seul. Le modèle choisi est la classe \textbf{RandomForestClassifier} de la librairie scikit-learn.
 
 \begin{center}
-\includegraphics[scale=0.25]{figures/exemple_RF.png}
+\includegraphics[width=0.8\textwidth]{figures/exemple_RF.png}
 \captionof{figure}{Schéma forêt aléatoire}
 \label{fig8}
 \end{center}
@@ -210,13 +225,13 @@ Une forêt aléatoire est un algorithme combinant plusieurs arbres de décisions
 % REM RD: Utilise plutôt "framework de modélisation" à la place de "chaîne de traitements"
 % La chaîne de traitements correspond à l'ensemble des briques de traitements allant du nettoyage
 % des données à l'évaluation des perf en passant par la modélisation.
-\subsection{Adaptation à la chaîne de traitement}
+\section{Adaptation au \textit{framework} de modélisation}
 
 % REM RD: Partie à relire et adapter légèrement pour la rendre plus rapport-compatible
-Les modèles \texttt{BayesianNetworkModel} et \texttt{RandomForestClassifier} s’intègrent parfaitement dans l’architecture de la chaîne de traitement. Cependant le modèle \texttt{MLPClassifier} a dû être adapté car il ne répondait pas parfaitement aux objectifs. En effet, les algorithmes de prédictions que l’on cherche à développer doivent pouvoir traiter des échantillons possédant plusieurs variables cibles, chacune possédant plusieurs labels (ce qui correspond à la classification \textit{multioutput-multiclass} décrite dans la doc. scikit-learn cf Table \ref{tab3}). La classe \texttt{RandomForestClassifier} appartient bien à cette classification, mais la classe \texttt{MLPClassifier} dépend de la classification \textit{multilabel}, c’est-à-dire que ce type de modèle ne fonctionne qu’avec des variables cibles ne possédant que deux labels lorsque le nombre de variables cibles est strictement supérieur à 1.
+Les modèles \texttt{BayesianNetworkModel} et \texttt{RandomForestClassifier} s’intègrent parfaitement dans le \textit{framework} de modélisation. Cependant le modèle \texttt{MLPClassifier} de scikit-learn appartient à la classification \textit{multilabel} (Table \ref{tab3}). Les algorithmes de prédictions des différents modèles doivent pouvoir traiter des échantillons possédant plusieurs variables cibles, chacune possédant plusieurs labels (ce qui correspond à la classification \textit{multioutput-multiclass} décrite dans la doc. scikit-learn cf Table \ref{tab3}). La classe \texttt{RandomForestClassifier} appartient bien à cette classification, mais pas la classe \texttt{MLPClassifier}, qui ne fonctionne qu’avec des variables cibles ne possédant que deux labels lorsque le nombre de variables cibles est strictement supérieur à 1.
 
 \begin{center}
-\begin{tabular}{lp{2.5cm}p{2.5cm}}
+\begin{tabular}{lp{2.4cm}p{2.5cm}}
 \rowcolor[RGB]{200, 200, 200} & Nombre de variables cibles & Cardinalité des variables cibles \\
 \hline
 Multiclass classification & 1 & $>$2 \\
@@ -232,11 +247,11 @@ Multioutput-multiclass classification & $>$1 & $>$2
 Cependant si le modèle \texttt{MLPClassifier} ne contient qu’une seule variable cible, tout fonctionne alors avec plusieurs labels (ou classes). On contourne alors le problème en créant autant de modèle que de variables cibles et on effectue l’apprentissage et la prédiction pour chacun des modèles (cela rajoute forcément de la complexité en temps).
 
 % REM RD: je ne conseille pas le changement soudain de style en gras
-C’est pour ces raisons de classifications \textit{multilabel} et \textit{multioutput-multiclass} qu’il a été choisi de créer les classes parentes \textbf{MLSklearnClassifierModelBinaryLabel} et \textbf{MLSklearnClassifierModelMultiLabel} (Figure \ref{fig4}) pour bien distinguer les cas.
+C’est pour ces raisons de classifications \textit{multilabel} et \textit{multioutput-multiclass} qu’il a été choisi de créer les classes parentes \texttt{MLSklearnClassifierModelBinaryLabel} et \texttt{MLSklearnClassifierModelMultiLabel} (Figure \ref{diag_classe_ml}) pour bien distinguer les cas.
 
-\section{Évaluation des performances d’un modèle}
-
-\subsection{Description de la classe MLPerformance}
+\chapter{Évaluation des performances d’un modèle}
+\clearpage
+\section{Description de la classe MLPerformance}
 
 Une fois différents modèles ML implémentés, il faut pouvoir mesurer les performances en termes de prévision de ces derniers . Pour ce faire, la classe \texttt{MLPerformance} a été implémentée (cf. Figure \ref{fig5}). Cette classe gère le calcul de différentes mesures de performance pour un jeu de données particulier et un certain paramétrage du modèle.
 
@@ -250,12 +265,12 @@ La classe \texttt{MLPerformance} comprend plusieurs variables d’instance:
 
 Muni d’un jeu de donnée, la classe \texttt{MLPerformance} se charge ensuite de lancer automatiquement successivement les phases de séparation des données en jeu de test et d'entraînement,  d’apprentissage sur le jeu d’entraînement, de prédiction sur le jeu de test puis de calcul des différentes mesures de performances à partir des \texttt{DiscreteDistribution} obtenues après prédiction.
 
-\subsection{Mécanisme d’évaluation séquentiel}
+\section{Mécanisme d’évaluation séquentiel}
 
-La phase de séparation des données ne consiste pas uniquement à séparer les données en un unique jeu d'entraînement et jeu de test. On a vu au sous-chapitre 4.3 que les données étaient ordonnées temporellement et que l’équipement matériel était sujet à des évolutions rapides. Ainsi il semble intéressant de créer des jeux de données “glissants” sur l’ensemble des données, i.e. des données utilisées dans le jeu de test à l’itération i servent ensuite au jeu d'entraînement à l’itération i+1, ainsi on effectue une validation des données de tests en s’appuyant uniquement sur l’apprentissage des données les plus récentes. Les paramètres initialisant les tailles des fenêtres glissantes d’apprentissage et de test sont stockés dans les paramètres d’apprentissage de la classe \texttt{MLPerformance}.
+La phase de séparation des données ne consiste pas uniquement à séparer les données en un unique jeu d'entraînement et jeu de test. On a vu à la section \ref{temp_data} que les données étaient ordonnées temporellement et que l’équipement matériel était sujet à des évolutions rapides. Ainsi il semble intéressant de créer des jeux de données “glissants” sur l’ensemble des données, i.e. des données utilisées dans le jeu de test à l’itération i servent ensuite au jeu d'entraînement à l’itération i+1, ainsi on effectue une validation des données de tests en s’appuyant uniquement sur l’apprentissage des données les plus récentes. Les paramètres initialisant les tailles des fenêtres glissantes d’apprentissage et de test sont stockés dans les paramètres d’apprentissage de la classe \texttt{MLPerformance}.
 
 \begin{center}
-\includegraphics[scale=0.25]{figures/Sliding_split.png}
+\includegraphics[width=0.8\textwidth]{figures/Sliding_split.png}
 \captionof{figure}{Exemple d'apprentissage glissant sur les données}
 \label{fig9}
 \end{center}
@@ -279,12 +294,18 @@ Une mesure de performance est implémentée au moyen d’une classe abstraite \t
 
 Toutes les mesures listées ci-dessous hérite de cette classe abstraite.  
 
+\begin{center}
+\includegraphics[width=1.1\textwidth]{figures/diagramme_classe_perf.png}
+\captionof{figure}{Diagramme de classe du module de performance}
+\label{fig5}
+\end{center}
+
 \subsection{Mesure de succès}
 
 La première manière la plus intuitive de mesurer la performance d’un modèle dans le cadre d’une classification (i.e. variables cibles catégorielles) est de calculer son taux de succès ou justesse. Le succès est défini comme une bonne prédiction pour la variable cible.
 
 \begin{center}
-\includegraphics[scale=0.6]{figures/justesse.png}
+\includegraphics[width=0.6\textwidth]{figures/justesse.png}
 \end{center}
 
 Comme illustré sur la Figure \ref{fig5}, cette mesure de succès est implémentée  dans la classe \texttt{SuccessMeasure}. Cette dernière prend deux paramètres:
@@ -297,7 +318,7 @@ Comme illustré sur la Figure \ref{fig5}, cette mesure de succès est implément
 Le paramètre \textit{map$\_$k} permet de considérer les \textit{k} labels les plus probables suite à la prédiction (i.e. les \textit{k} maximum-a-posteriori). Par défaut, \textit{map$\_$k} est une liste ne contenant que l’entier 1, il n’est considéré alors que le maximum-a-posteriori, mais il est très bien possible d'ajouter différentes valeurs de \textit{k} dans les paramètres pour ainsi considérer les \textit{k} labels les plus probables. On définit donc un succès de la prédiction pour un entier \textit{k} donné du \textit{map$\_$k}, si pour une ligne du jeu de donnée, la valeur à prédire se trouve parmi les \textit{k} labels les plus probables. Logiquement, le taux de succès sur l’ensemble du jeu de donnée de test augmente quand la valeur de \textit{k} croît.
 
 \begin{center}
-\includegraphics[scale=0.4]{figures/rapport_success_rate.png}
+\includegraphics[width=1\textwidth]{figures/rapport_success_rate.png}
 \captionof{figure}{Taux de succès pour \textit{map$\_$k} = [1,2,3,5,10] sur le jeu de donnée de la RATP}
 \label{fig10}
 \end{center}
@@ -321,7 +342,7 @@ La valeur associée à la clé “aggreg” correspond pour chaque k au nombre m
 La valeur associée à la clé “joint” correspond au taux de bonne prédiction pour chaque combinaison de variables cibles sachant que les autres variables cibles n’ont pas été prédites (par exemple sur la Figure \ref{fig11}, le taux de bonne prédiction de la variable FONCTION$\_$NIV2 sachant que ODM$\_$LIBELLE n’est pas prédit est de 0.5, et le taux de bonne prédiction de la combinaison ODM$\_$LIBELLE - FONCTION$\_$NIV2 sachant que les autres variables, ici aucune, ne sont pas prédites est de 0.27).
 
 \begin{center}
-\includegraphics[scale=0.25]{figures/visu_success.png}
+\includegraphics[width=1\textwidth]{figures/visu_success.png}
 \captionof{figure}{Visualisations interactive associées à la mesure de succès}
 \label{fig11}
 \end{center}
@@ -333,11 +354,11 @@ labels de la variable cible en question. L'élément d’indice \textit{(i,j)} c
 nombre de fois que l’on a prédit le \textit{i}-ème label alors que le label à prédire est le
 \textit{j}-ième. Les éléments d’indices \textit{(i,i)} correspondent aux cas de bonnes prédictions.
 
-\begin{center}
-\includegraphics[scale=0.45]{figures/confusion_matrix.png}
+\begin{figure}
+\includegraphics[width=1\textwidth]{figures/confusion_matrix.png}
 \captionof{figure}{Exemple de matrice de confusion pour une variable cible à huit labels}
 \label{fig12}
-\end{center}
+\end{figure}
 
 La matrice de confusion peut être assez illisible si on veut afficher des matrices de variables possédant un grand nombre de labels possibles comme c’est le cas pour notre exemple avec la base de données gmao de la RATP dont une des variables cibles possède 1400 labels.
 
@@ -359,7 +380,7 @@ Le pronostic se distingue du diagnostic dans le sens où l’objectif du diagnos
 L’objectif pour un modèle performant est donc de minimiser la MAE afin que la trajectoire prédite de la RUL pour un système donné coïncide au plus avec la trajectoire correspondante des données de test. Ci-dessous, on remarque sans trop de mal que la trajectoire prédite est bien loin de la trajectoire à prédire.
 
 \begin{center}
-\includegraphics[scale=0.45]{figures/system_trajectory.png}
+\includegraphics[width=1\textwidth]{figures/system_trajectory.png}
 \captionof{figure}{Trajectoire système avec en ordonnée la RUL et en abscisse le temps}
 \label{fig13}
 \end{center}
@@ -369,35 +390,8 @@ L’objectif pour un modèle performant est donc de minimiser la MAE afin que la
 L’architecture de la chaîne de traitement permet de facilement implémenter de nouvelles mesures de performance, et ce sera certainement une piste d’ouverture pour la continuité du projet. Un extrait d’un article de Saxena [3] permet de montrer quelles mesures pourraient être implémentées. En voici un exemple avec la \textit{Mean Absolute Percentage Error} (MAPE):
 $$MAPE =\frac{1}{n}\sum_{i=1}^{n} \left \lvert \frac{100\Delta x_{i}}{x^{\star}_{i}} \right \rvert $$
 
-\section{Sélection des variables pour l’apprentissage}
-% REM RD: Franchement, je pense que cette section a sa place avant la partie
-% modélisation/apprentissage mais c'est toi qui voit.
 
-% REM RD: Attention cohérence, tu expliques déjà que features==variables explicative précédemment.
-Pour améliorer la précision des prédictions et pour accélérer la phase d’apprentissage, il peut être judicieux de se restreindre à un nombre limité de variables explicatives (ou \textit{features} en anglais), c’est ce qu’on appelle classiquement en \textit{machine learning} une méthode de réduction de la dimensionnalité. En effet, des redondances dans les données peuvent engendrer des problèmes au moment de l’apprentissage, comme le sur-apprentissage (ou \textit{overfitting} en anglais) par exemple.
-
-Pour cela deux types de méthodes ont été implémentées : 
-\begin{enumerate}
-\item les méthodes de filtrage qui sélectionnent des variables indépendamment du modèle utilisé. Elles ne se basent que sur les corrélations entre les \textit{features} et les variables cibles. Leur principal avantage est qu’elles sont particulièrement efficace en terme de complexité temporelle.
-\item les méthodes par encapsulation (\textit{wrapper method}) qui testent des sous-ensembles de \textit{features} sur le modèle, i.e. il faut faire un apprentissage du modèle pour chaque sous-ensemble que l’on veut tester. Ces méthodes sont plus précises mais elles sont beaucoup plus coûteuses en temps. Si on a $n$ variables et que l’on veut tester tous les sous-ensembles possibles, il faudrait faire $2^{n}$ phases d’apprentissage. La complexité étant exponentielle, on se limite en pratique à un nombre réduit de sous-ensembles à tester.
-\end{enumerate}
-
-Les deux méthodes de filtrage qui ont été ajoutées sont:
-\begin{easylist}
-\ListProperties(Hide=100, Hang=true, Progressive=3ex, Style*=--)
-& ~FCBF (\textit{Fast Correlation-Based Filter}) [4]
-& ~ReliefF (une amélioration de l’algorithme Relief) [5] 
-\end{easylist}
-
-La méthode d’encapsulation (\textit{wrapper method}) implémentée consiste quant à elle à tester l’impact de la suppression de chaque variable explicative, on a ainsi une complexité de l’ordre du nombre de variables.
-
-\begin{center}
-\includegraphics[scale=0.55]{figures/diagramme_classe_select.png}
-\captionof{figure}{Diagramme de classe du module de sélection de variables}
-\label{fig14}
-\end{center}
-
-\section{Visualisations et création d’une application dash}
+\chapter{Visualisations et création d’une application dash}
 
 Les visualisations sont gérées au niveau de chaque composant de la chaîne de traitements en suivant
 un formalisme spécifique. Cette architecture
@@ -407,61 +401,68 @@ performance, comparaison de modèles, etc.). L’application est codée à l’a
 
 À ce jour la plus grosse brique regroupant tous les composants est le module de comparaison de
 performances entre plusieurs modèles.
-% REM RD: Utilise une référence à une Figure
-C’est ce qui est présenté dans le schéma ci-dessous.
+
+C’est ce qui est présenté dans le schéma Figure \ref{fig15}.
 
 
 % REM RD: Titre de la figure
 \begin{center}
-\includegraphics[scale=0.55]{figures/schema_app.png}
+\includegraphics[width=1\textwidth]{figures/schema_app.png}
 \captionof{figure}{Schéma du \textit{dashboard}}
 \label{fig15}
 \end{center}
 
 % REM RD: Je te conseille d'utiliser une liste d'items.
-La barre de navigation sur la gauche est décomposée en trois parties: la première partie compare les modèles selon une mesure donnée, la deuxième affiche les performances de chaque modèle, tandis que la troisième partie récapitule les paramètres de chaque modèle. Nous allons voir les différentes visualisations pour chaque partie ci-dessous.
+La barre de navigation sur la gauche est décomposée en trois parties: 
+\begin{easylist}
+\ListProperties(Hide=100, Hang=true, Progressive=3ex, Style*=--)
+& ~la première partie compare les modèles selon une mesure donnée
+& ~la deuxième affiche les performances de chaque modèle
+& ~la troisième partie récapitule les paramètres de chaque modèle.
+\end{easylist}
 
-\subsection{Partie \textit{MODELS COMPARISON}}
+Nous allons voir les différentes visualisations pour chaque partie ci-dessous.
+
+\section{Partie \textit{MODELS COMPARISON}}
 
 % REM RD: Titre de la figure
 \begin{center}
-\includegraphics[scale=0.25]{figures/app_comparison.png}
-\captionof{figure}{}
+\includegraphics[width=1\textwidth]{figures/app_comparison.png}
+\captionof{figure}{Partie \textit{MODELS COMPARISON}}
 \label{fig16}
 \end{center}
 
 % REM RD: Formulation à améliorer un peu. e.g. La Figure \ref{fig16} présente <bla bla>.
-Sur la Figure \ref{fig16}, on est dans l’onglet \textit{Success} de \textit{Models Comparison}, on observe alors le taux de succès de chaque modèle pour une variable cible donnée. Toutes les mesures de performances se trouvent dans la partie \textit{MODELS COMPARISON}. Et il est donc possible de comparer les différents modèles selon la mesure souhaitée.
+La Figure \ref{fig16} présente l’onglet \textit{Success} de \textit{Models Comparison} affichant le taux de succès de chaque modèle pour une variable cible donnée. Toutes les mesures de performances se trouvent dans la partie \textit{MODELS COMPARISON}. Et il est donc possible de comparer les différents modèles selon la mesure souhaitée.
 
-\subsection{Partie \textit{ML PERFORMANCE MODELS}}
+\section{Partie \textit{ML PERFORMANCE MODELS}}
 
 % REM RD: Titre de la figure ici nous sommes dans l’onglet \textit{Success}.
 \begin{center}
-\includegraphics[scale=0.25]{figures/app_models.png}
-\captionof{figure}{}
+\includegraphics[width=1\textwidth]{figures/app_models.png}
+\captionof{figure}{Onglet \textit{Success}, Partie \textit{ML PERFORMANCE MODELS}}
 \label{fig17}
 \end{center}
 
 % REM RD: peut-être utiliser un autre terme que "brique". Par exemple "espace dédié à l'affichage de
 % <tel truc>"
 Sur la Figure \ref{fig17} est affichée la visualisation relative à un modèle de la fenêtre
-\textit{ML Performance Models}. On retrouve dans la partie supérieure des onglets correspondant à
-une mesure de performance.
-Juste en dessous de cette barre d’onglet, on affiche la brique permettant de visualiser la mesure \textit{Success}. Dans cette brique, il y a une autre barre d’onglet avec d’un côté les différents graphes (Figure \ref{fig17}) et de l’autre les données du jeu de test avec les prédictions probabilistes (Figure \ref{fig18}).
+\textit{ML Performance Models}. On retrouve dans la partie supérieure des onglets correspondant à une mesure de performance.
+Juste en dessous de cette barre d’onglet se trouve l'espace dédié à l'affichage de la mesure \textit{Success}. Dans cet espace, il y a une autre barre d’onglet avec d’un côté les différents graphes (Figure \ref{fig17}) et de l’autre les données du jeu de test avec les prédictions probabilistes (Figure \ref{fig18}).
 
 % REM RD: Titre de la figure
-\begin{center}
-\includegraphics[scale=0.25]{figures/app_models_table.png}
-\captionof{figure}{}
+\begin{figure}
+\includegraphics[width=1\textwidth]{figures/app_models_table.png}
+\captionof{figure}{Affichage des données}
 \label{fig18}
-\end{center}
+\end{figure}
 
-\subsection{Partie \textit{MODELS SPECS}}
+\section{Partie \textit{MODELS SPECS}}
 
 Enfin comme montré sur la Figure \ref{fig19}, on affiche les différents paramètres du modèle sélectionné dans la fenêtre \textit{Models Specs}.
 
 \begin{center}
-\includegraphics[scale=0.30]{figures/app_specs.png}
-\captionof{figure}{}
+\includegraphics[width=1\textwidth]{figures/app_specs.png}
+\captionof{figure}{Partie \textit{MODELS SPECS}}
 \label{fig19}
 \end{center}
