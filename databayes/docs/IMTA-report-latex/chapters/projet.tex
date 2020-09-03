@@ -2,7 +2,7 @@
 \clearpage
 \section{Organisation du projet}
 
-Les trois premières semaines du stage ont consisté à réaliser un état de l’art scientifique et technique sur les approches de modélisation probabiliste et en particulier sur le formalisme des réseaux bayésiens et leurs applications  dans le domaine du diagnostic/pronostic de pannes.
+Les trois premières semaines du stage ont consisté à réaliser un état de l’art scientifique et technique sur les approches de modélisation probabiliste \cite{pradhan_knowledge_1994} \cite{dechter_bucket_1998} \cite{nielsen_bayesian_2009} et en particulier sur le formalisme des réseaux bayésiens et leurs applications  dans le domaine du diagnostic/pronostic de pannes. \cite{giurgiu_explainable_2019}\cite{noauthor_transparency_2019} \cite{chen_railway_2019}\cite{shi_fault_2006}\cite{zhang_fault_2017}\cite{cai_bayesian_2017}\cite{krishnamurthi_expert_1992}\cite{huang_probability_2008}\cite{chen-fu_chien_using_2002}\cite{han_universal_2008}
 
 Une seconde phase de mise à niveau technique a permi de se familiariser avec  l’écosystème Python pour la \textit{data science}. En particulier, les librairies utilisées dans les implémentations sont Pandas pour le traitement de données, Pyagrum pour la modélisation de réseaux bayésiens, Scikit-learn pour les  méthodes usuelles de \textit{machine learning}, Pytest pour effectuer des tests unitaires et enfin Pydantic pour la structuration et la lisibilité du code. L’ensemble des développements est effectué sous gestion de versions avec le logiciel Git.
 
@@ -65,8 +65,8 @@ Pour cela deux types de méthodes ont été implémentées :
 Les deux méthodes de filtrage qui ont été ajoutées sont:
 \begin{easylist}
 \ListProperties(Hide=100, Hang=true, Progressive=3ex, Style*=--)
-& ~FCBF (\textit{Fast Correlation-Based Filter}) [4]
-& ~ReliefF (une amélioration de l’algorithme Relief) [5] 
+& ~FCBF (\textit{Fast Correlation-Based Filter}) \cite{fcbf_algorithm}
+& ~ReliefF (une amélioration de l’algorithme Relief) \cite{Kononenko94estimatingattributes} 
 \end{easylist}
 
 La méthode d’encapsulation (\textit{wrapper method}) implémentée consiste quant à elle à tester l’impact de la suppression de chaque variable explicative, on a ainsi une complexité de l’ordre du nombre de variables.
@@ -81,7 +81,7 @@ La méthode d’encapsulation (\textit{wrapper method}) implémentée consiste q
 \clearpage
 \section{Problématique}
 
-La classification supervisée [1] peut être définie de la façon suivante: étant données $n$ observations $\lbrace\vec{x}^{\:i}\rbrace_{i=1,...,n}$ décrites dans un espace $\mathcal{X}$ et leurs étiquettes $\lbrace y^{\:i}\rbrace_{i=1,...,n}$ associées décrites dans un espace $\mathcal{Y}$, on cherche alors, à partir des données, une fonction $f:\mathcal{X}\rightarrow\mathcal{Y}$ telle que $\forall(\vec{x},y)\in \mathcal{X}\times\mathcal{Y},\quad f(\vec{x})\approx y$
+La classification supervisée \cite{azencott2018introduction} peut être définie de la façon suivante: étant données $n$ observations $\lbrace\vec{x}^{\:i}\rbrace_{i=1,...,n}$ décrites dans un espace $\mathcal{X}$ et leurs étiquettes $\lbrace y^{\:i}\rbrace_{i=1,...,n}$ associées décrites dans un espace $\mathcal{Y}$, on cherche alors, à partir des données, une fonction $f:\mathcal{X}\rightarrow\mathcal{Y}$ telle que $\forall(\vec{x},y)\in \mathcal{X}\times\mathcal{Y},\quad f(\vec{x})\approx y$
 
 \begin{center}
 \includegraphics[width=0.8\textwidth]{figures/apprentissage_supervise.png}
@@ -170,7 +170,7 @@ Comme le montre la Figure \ref{diag_classe_ml}, trois modèles différents ont �
 \section{Réseaux bayésiens}
 
 % REM RD : Pour la biblio, utilise \cite{label} mais tu trouveras des tonnes d'aide sur le net pour ça.
-Un réseau bayésien [2] est un modèle graphique probabiliste représentant un ensemble de variables
+Un réseau bayésien \cite{neapolitan_learning_2007} est un modèle graphique probabiliste représentant un ensemble de variables
 aléatoires sous la forme d'un graphe orienté acyclique. Les noeuds de ce graphe correspondent aux
 variables, tandis que les liens correspondent à des relations entre variables. Pour construire un
 réseau bayésien, il faut donc définir les différentes variables et les tables de probabilités
@@ -387,7 +387,7 @@ L’objectif pour un modèle performant est donc de minimiser la MAE afin que la
 
 \subsection{Création de nouvelles mesures}
 
-L’architecture de la chaîne de traitement permet de facilement implémenter de nouvelles mesures de performance, et ce sera certainement une piste d’ouverture pour la continuité du projet. Un extrait d’un article de Saxena [3] permet de montrer quelles mesures pourraient être implémentées. En voici un exemple avec la \textit{Mean Absolute Percentage Error} (MAPE):
+L’architecture de la chaîne de traitement permet de facilement implémenter de nouvelles mesures de performance, et ce sera certainement une piste d’ouverture pour la continuité du projet. Un extrait d’un article de Saxena \cite{metrics_saxena} permet de montrer quelles mesures pourraient être implémentées. En voici un exemple avec la \textit{Mean Absolute Percentage Error} (MAPE):
 $$MAPE =\frac{1}{n}\sum_{i=1}^{n} \left \lvert \frac{100\Delta x_{i}}{x^{\star}_{i}} \right \rvert $$
 
 
