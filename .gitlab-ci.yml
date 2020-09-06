@@ -6,10 +6,12 @@ image: python:3.6
     
 stages:
   - tests
-  - build
-  - deploy
+  # - build
+  # - deploy
   
 tests:
+  extends: .only-version-branch
+
   stage: tests
   script:
     - pip install packaging>=20.0
@@ -17,29 +19,29 @@ tests:
     - pip install -e ./
     - cd databayes/tests && pytest -v --runslow
   
-build_wheel:
-  extends: .only-version-branch
+# build_wheel:
+#   extends: .only-version-branch
 
-  stage: build
+#   stage: build
 
-  script:
-    - pip install wheel
-    - pip install packaging
-    - python setup.py sdist bdist_wheel
-  artifacts:
-    paths:
-    - dist/
-    expire_in: 1 day
+#   script:
+#     - pip install wheel
+#     - pip install packaging
+#     - python setup.py sdist bdist_wheel
+#   artifacts:
+#     paths:
+#     - dist/
+#     expire_in: 1 day
 
-deploy:
-  extends: .only-version-branch
+# deploy:
+#   extends: .only-version-branch
 
-  stage: deploy
+#   stage: deploy
 
-  variables:
-    TWINE_PASSWORD: $TWINE_PASSWORD
-  script:
-    - pip install twine
-    - twine upload -u roland.donat dist/*
+#   variables:
+#     TWINE_PASSWORD: $TWINE_PASSWORD
+#   script:
+#     - pip install twine
+#     - twine upload -u roland.donat dist/*
 
 
