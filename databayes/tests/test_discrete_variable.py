@@ -7,7 +7,7 @@
 import os
 import logging
 
-from databayes.modelling.DiscreteVariable import DiscreteVariable
+from import_pkg import DiscreteVariable
 import pytest
 
 import pkg_resources

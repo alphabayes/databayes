@@ -1,18 +1,14 @@
-# ===================================================================================================#
-# Classe modelisant des ensembles de distributions discretes en utilisant des dataFrames pandas      #
-# josquin.foulliaron@edgemind.net                                                                    #
-# ===================================================================================================#
+""" Class modelling discrete and finite distribution 
+    extending pandas DataFrame."""
 
 # Imported libraries
 import pkg_resources
-import re
-import numbers
 
 # For computations on data
 import numpy as np
 import pandas as pd
 
-import databayes.modelling.DiscreteVariable as dv
+from .DiscreteVariable import DiscreteVariable
 
 # For graph plot
 
@@ -63,10 +59,10 @@ class DiscreteDistribution(FrozenClass, pd.DataFrame):
     # Constructeur de classe
     def __init__(self, probs=None, name=None, domain=[], bins=[], unit=None, **df_specs):
 
-        self.variable = dv.DiscreteVariable(name=name,
-                                            domain=domain,
-                                            bins=bins,
-                                            unit=unit)
+        self.variable = DiscreteVariable(name=name,
+                                         domain=domain,
+                                         bins=bins,
+                                         unit=unit)
 
         # Remove domain_type from df_specs if specified to avoid
         # error in the following __init__ call

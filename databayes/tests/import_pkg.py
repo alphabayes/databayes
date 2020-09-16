@@ -1,4 +1,4 @@
-from databayes.modelling.DiscreteDistribution import DiscreteDistribution
+from databayes.modelling.DiscreteDistribution import DiscreteDistribution, DiscreteVariable
 from databayes.modelling.SKlearnClassifiers import RandomForestModel, MLPClassifierModel
 from databayes.utils.ml_performance import MLPerformance
 from databayes.modelling.MLModel import RandomUniformModel, MLModel

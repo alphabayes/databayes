@@ -1,1 +1,0 @@
-Documentation about tests for lib_mda library

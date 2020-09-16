@@ -1,19 +1,14 @@
 import pydantic
-import typing_extensions
-import abc
 from datetime import datetime
 import typing
 
-import os
-import sys
-import subprocess
 import pkg_resources
 
-import databayes.modelling.DiscreteDistribution as dd
+from .DiscreteDistribution import DiscreteDistribution
 
 installed_pkg = {pkg.key for pkg in pkg_resources.working_set}
 if 'ipdb' in installed_pkg:
-    import ipdb
+    import ipdb  # noqa: F401
 
 
 class ModelMetaInfo(pydantic.BaseModel):
@@ -115,8 +110,8 @@ class RandomUniformModel(MLModel):
         pred_res = {}
         for tv in self.var_targets:
             var_domain = data[tv].cat.categories.to_list()
-            ddist = dd.DiscreteDistribution(index=data.index,
-                                            domain=var_domain)
+            ddist = DiscreteDistribution(index=data.index,
+                                         domain=var_domain)
             ddist.values[:] = 1/len(var_domain)
             pred_res.setdefault(tv, {"scores": ddist})
 
