@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
-
-from databayes.modelling.DiscreteDistribution import DiscreteDistribution
-from databayes.modelling.SKlearnClassifiers import MLPClassifierModel
-from databayes.utils.ml_performance import MLPerformance
+from import_pkg import DiscreteDistribution, MLPClassifierModel, MLPerformance
 import yaml
 import numpy as np
 import pandas as pd
@@ -16,7 +13,7 @@ import pkg_resources
 
 installed_pkg = {pkg.key for pkg in pkg_resources.working_set}
 if 'ipdb' in installed_pkg:
-    import ipdb
+    import ipdb  # noqa: F401
 
 
 logger = logging.getLogger()
@@ -372,7 +369,7 @@ def test_MLPClassifierModel_005_01(gmaobus_models_specs,
     ml_perf_param = deepcopy(
         gmaobus_ml_performance_specs["ml_performance_analysis_02"])
 
-    mlp_ml = MLPClassifierModel(**model_param)  
+    mlp_ml = MLPClassifierModel(**model_param)
 
     ml_perf = MLPerformance(
         model=mlp_ml,
@@ -386,10 +383,10 @@ def test_MLPClassifierModel_005_01(gmaobus_models_specs,
 
     ml_perf_expected_filename = os.path.join(EXPECTED_DIR,
                                              "test_MLPClassifierModel_005_01_perf.json")
-    
+
     # with open(ml_perf_expected_filename, 'w') as json_file:
     #     json.dump(ml_perf.dict(), json_file)
-    
+
     with open(ml_perf_expected_filename, 'r') as json_file:
         ml_perf_expected_specs = json.load(json_file)
 

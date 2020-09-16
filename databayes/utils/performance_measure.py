@@ -5,7 +5,6 @@ from itertools import chain, combinations
 import pandas as pd
 import numpy as np
 import pydantic
-import json
 import textwrap
 
 import dash
@@ -18,13 +17,13 @@ from dash.dependencies import Input, Output
 import pkg_resources
 installed_pkg = {pkg.key for pkg in pkg_resources.working_set}
 if 'ipdb' in installed_pkg:
-    import ipdb
+    import ipdb  # noqa: F401
 
 if 'plotly' in installed_pkg:
-    import plotly.io as pio
-    from plotly.subplots import make_subplots
-    import plotly.graph_objects as go
-    import plotly.offline as pof
+    import plotly.io as pio  # noqa: F401
+    from plotly.subplots import make_subplots  # noqa: F401
+    import plotly.graph_objects as go  # noqa: F401
+    import plotly.offline as pof  # noqa: F401
 
 
 class PerformanceMeasureBase(pydantic.BaseModel, abc.ABC):
@@ -1062,7 +1061,7 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
                     'mirror': True
                 }
 
-                }
+                    }
         }
 
         return fig_specs
@@ -1210,7 +1209,7 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
                     'linecolor': 'black',
                     'mirror': True
                 }
-                }
+                    }
         }
 
         return fig_specs
@@ -1267,7 +1266,7 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
                     'mirror': True
                 }
 
-                }
+                    }
         }
 
         return fig_specs

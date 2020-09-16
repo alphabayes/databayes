@@ -1,6 +1,4 @@
-from databayes.utils.ml_performance import MLPerformance
-from databayes.modelling.core import MLModel
-from databayes.modelling.BayesNet import BayesianNetworkModel
+from import_pkg import MLPerformance, MLModel, BayesianNetworkModel
 import yaml
 import numpy as np
 import pandas as pd
@@ -170,74 +168,76 @@ def test_MLPerformance_001(gmaobus_models_specs,
 
     assert ml_perf.measures_approx_equal(ml_perf_expected)
 
+
 @pytest.mark.parametrize("test_input,expected,ml_perf_specs",
-                          [  
-                            (pd.DataFrame(range(1)), [],
+                         [
+                             (pd.DataFrame(range(1)), [],
                               "ml_performance_analysis_03"),
-                            (pd.DataFrame(range(1)), [],
+                             (pd.DataFrame(range(1)), [],
                               "ml_performance_analysis_04"),
-                            (pd.DataFrame(range(1)), [],
+                             (pd.DataFrame(range(1)), [],
                               "ml_performance_analysis_05"),
-                            (pd.DataFrame(range(1)), [],
+                             (pd.DataFrame(range(1)), [],
                               "ml_performance_analysis_06"),
-                            (pd.DataFrame(range(1)), [],
+                             (pd.DataFrame(range(1)), [],
                               "ml_performance_analysis_07"),
-                            (pd.DataFrame(range(1)), [],
+                             (pd.DataFrame(range(1)), [],
                               "ml_performance_analysis_08"),
-                            (pd.DataFrame(range(2)), [([0], [1])],
+                             (pd.DataFrame(range(2)), [([0], [1])],
                               "ml_performance_analysis_03"),
-                            (pd.DataFrame(range(2)), [([0], [1])],
+                             (pd.DataFrame(range(2)), [([0], [1])],
                               "ml_performance_analysis_04"),
-                            (pd.DataFrame(range(2)), [],
+                             (pd.DataFrame(range(2)), [],
                               "ml_performance_analysis_05"),
-                            (pd.DataFrame(range(2)), [([0], [1])],
+                             (pd.DataFrame(range(2)), [([0], [1])],
                               "ml_performance_analysis_06"),
-                            (pd.DataFrame(range(2)), [([0], [1])],
+                             (pd.DataFrame(range(2)), [([0], [1])],
                               "ml_performance_analysis_07"),
-                            (pd.DataFrame(range(2)), [([0], [1])],
+                             (pd.DataFrame(range(2)), [([0], [1])],
                               "ml_performance_analysis_08"),
-                            (pd.DataFrame(range(5)), [([0, 1], [2, 3, 4])],
+                             (pd.DataFrame(range(5)), [([0, 1], [2, 3, 4])],
                               "ml_performance_analysis_03"),
-                            (pd.DataFrame(range(5)), [([1], [2, 3, 4])],
+                             (pd.DataFrame(range(5)), [([1], [2, 3, 4])],
                               "ml_performance_analysis_04"),
-                            (pd.DataFrame(range(5)), [],
+                             (pd.DataFrame(range(5)), [],
                               "ml_performance_analysis_05"),
-                            (pd.DataFrame(range(5)), [([0, 1], [2, 3, 4])],
+                             (pd.DataFrame(range(5)), [([0, 1], [2, 3, 4])],
                               "ml_performance_analysis_06"),
-                            (pd.DataFrame(range(5)), [([0, 1], [2]), ([1, 2], [3]), ([2, 3], [4])],
+                             (pd.DataFrame(range(5)), [([0, 1], [2]), ([1, 2], [3]), ([2, 3], [4])],
                               "ml_performance_analysis_07"),
-                            (pd.DataFrame(range(5)), [([0, 1], [2, 3, 4])],
+                             (pd.DataFrame(range(5)), [([0, 1], [2, 3, 4])],
                               "ml_performance_analysis_08"),
-                            (pd.DataFrame(range(10)), [([0, 1, 2, 3, 4], [5, 6, 7, 8, 9])],
+                             (pd.DataFrame(range(10)), [([0, 1, 2, 3, 4], [5, 6, 7, 8, 9])],
                               "ml_performance_analysis_03"),
-                            (pd.DataFrame(range(10)), [([2, 3, 4], [5, 6, 7, 8, 9])],
+                             (pd.DataFrame(range(10)), [([2, 3, 4], [5, 6, 7, 8, 9])],
                               "ml_performance_analysis_04"),
-                            (pd.DataFrame(range(10)), [([2, 3, 4], [5]), ([3, 4, 5], [6]), ([4, 5, 6], [7]), ([5, 6, 7], [8]), ([6, 7, 8], [9])],
+                             (pd.DataFrame(range(10)), [([2, 3, 4], [5]), ([3, 4, 5], [6]), ([4, 5, 6], [7]), ([5, 6, 7], [8]), ([6, 7, 8], [9])],
                               "ml_performance_analysis_05"),
-                            (pd.DataFrame(range(10)), [([0, 1, 2, 3, 4], [5, 6, 7, 8, 9])],
+                             (pd.DataFrame(range(10)), [([0, 1, 2, 3, 4], [5, 6, 7, 8, 9])],
                               "ml_performance_analysis_06"),
-                            (pd.DataFrame(range(10)), [([0, 1, 2, 3, 4], [5]), ([1, 2, 3, 4, 5], [6]), ([2, 3, 4, 5, 6], [7]), ([3, 4, 5, 6, 7], [8]), 
+                             (pd.DataFrame(range(10)), [([0, 1, 2, 3, 4], [5]), ([1, 2, 3, 4, 5], [6]), ([2, 3, 4, 5, 6], [7]), ([3, 4, 5, 6, 7], [8]),
                                                         ([4, 5, 6, 7, 8], [9])],
                               "ml_performance_analysis_07"),
-                            (pd.DataFrame(range(10)), [([1, 2, 3, 4], [5, 6, 7, 8, 9])],
+                             (pd.DataFrame(range(10)), [([1, 2, 3, 4], [5, 6, 7, 8, 9])],
                               "ml_performance_analysis_08"),
-                            (pd.DataFrame(range(20)), [([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [10, 11, 12, 13, 14, 15, 16, 17, 18, 19])],
+                             (pd.DataFrame(range(20)), [([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], [10, 11, 12, 13, 14, 15, 16, 17, 18, 19])],
                               "ml_performance_analysis_03"),
-                            (pd.DataFrame(range(20)), [([5, 6, 7, 8, 9], [10, 11, 12, 13, 14, 15, 16, 17, 18, 19])],
+                             (pd.DataFrame(range(20)), [([5, 6, 7, 8, 9], [10, 11, 12, 13, 14, 15, 16, 17, 18, 19])],
                               "ml_performance_analysis_04"),
-                            (pd.DataFrame(range(20)), [([5, 6, 7, 8, 9], [10, 11]), ([7, 8, 9, 10, 11], [12, 13]), ([9, 10, 11, 12, 13], [14, 15]), 
+                             (pd.DataFrame(range(20)), [([5, 6, 7, 8, 9], [10, 11]), ([7, 8, 9, 10, 11], [12, 13]), ([9, 10, 11, 12, 13], [14, 15]),
                                                         ([11, 12, 13, 14, 15], [16, 17]), ([13, 14, 15, 16, 17], [18, 19])],
                               "ml_performance_analysis_05"),
-                            (pd.DataFrame(range(20)), [([3, 4, 5, 6, 7, 8, 9], [10, 11, 12, 13, 14, 15, 16, 17, 18, 19])],
+                             (pd.DataFrame(range(20)), [([3, 4, 5, 6, 7, 8, 9], [10, 11, 12, 13, 14, 15, 16, 17, 18, 19])],
                               "ml_performance_analysis_06"),
-                            (pd.DataFrame(range(20)), [([5, 6, 7, 8, 9], [10]), ([6, 7, 8, 9, 10], [11]), ([7, 8, 9, 10, 11], [12]), ([8, 9, 10, 11, 12], [13]), 
-                                                        ([9, 10, 11, 12, 13], [14]), ([10, 11, 12, 13, 14], [15]), ([11, 12, 13, 14, 15], [16]), 
+                             (pd.DataFrame(range(20)), [([5, 6, 7, 8, 9], [10]), ([6, 7, 8, 9, 10], [11]), ([7, 8, 9, 10, 11], [12]), ([8, 9, 10, 11, 12], [13]),
+                                                        ([9, 10, 11, 12, 13], [14]), ([10, 11, 12, 13, 14], [
+                                                            15]), ([11, 12, 13, 14, 15], [16]),
                                                         ([12, 13, 14, 15, 16], [17]), ([13, 14, 15, 16, 17], [18]), ([14, 15, 16, 17, 18], [19])],
                               "ml_performance_analysis_07"),
-                            (pd.DataFrame(range(20)), [([2, 3, 4, 5, 6, 7, 8, 9], [10, 11, 12, 13, 14, 15, 16]), 
+                             (pd.DataFrame(range(20)), [([2, 3, 4, 5, 6, 7, 8, 9], [10, 11, 12, 13, 14, 15, 16]),
                                                         ([9, 10, 11, 12, 13, 14, 15, 16], [17, 18, 19])],
                               "ml_performance_analysis_08"),
-                          ])
+                         ])
 def test_MLPerformance_sliding_split(gmaobus_ml_performance_specs,
                                      test_input,
                                      expected,
@@ -247,7 +247,6 @@ def test_MLPerformance_sliding_split(gmaobus_ml_performance_specs,
         model=MLModel(), **gmaobus_ml_performance_specs[ml_perf_specs])
     data_train_idx, data_test_idx = ml_perf.split_data(test_input)
     slide = ml_perf.sliding_split(data_train_idx, data_test_idx)
-    
+
     assert [(d_train_idx, d_test_idx)
             for d_train_idx, d_test_idx in slide] == expected
-

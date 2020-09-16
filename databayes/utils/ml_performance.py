@@ -2,13 +2,11 @@
 
 import typing
 
-import databayes.modelling.core as dmc
-import numpy as np
-import pandas as pd
 import tqdm
 import pydantic
-import databayes.modelling.DiscreteDistribution as dd
-import databayes.utils.performance_measure as pm
+from ..modelling.MLModel import MLModel
+from ..modelling.DiscreteDistribution import DiscreteDistribution
+from .performance_measure import PerformanceMeasureBase
 
 import dash
 import dash_bootstrap_components as dbc
@@ -19,7 +17,7 @@ from dash.dependencies import Input, Output
 import pkg_resources
 installed_pkg = {pkg.key for pkg in pkg_resources.working_set}
 if 'ipdb' in installed_pkg:
-    import ipdb
+    import ipdb  # noqa: F401
 
 
 class FitParameters(pydantic.BaseModel):
@@ -57,9 +55,9 @@ class MLPerformance(pydantic.BaseModel):
     # It may be interesting (for plotting for example) to add data_test and pred_prob as class attributes
     # with options to export it in the json or dict methods
 
-    model: dmc.MLModel = pydantic.Field(...,
-                                        description="Machine learning model")
-    measures: typing.Dict[str, pm.PerformanceMeasureBase] = pydantic.Field(
+    model: MLModel = pydantic.Field(...,
+                                    description="Machine learning model")
+    measures: typing.Dict[str, PerformanceMeasureBase] = pydantic.Field(
         {}, description="Dictionary of performance measures")
 
     fit_parameters: FitParameters = pydantic.Field(
@@ -75,7 +73,7 @@ class MLPerformance(pydantic.BaseModel):
     def match_dict_attribut(cls, measures):
 
         measure_classes_d = {cls.__name__: cls
-                             for cls in pm.PerformanceMeasureBase.__subclasses__()}
+                             for cls in PerformanceMeasureBase.__subclasses__()}
 
         for measure_name, measure_specs in measures.items():
             measure_class_name = \
@@ -209,8 +207,8 @@ class MLPerformance(pydantic.BaseModel):
                                         tv].cat.categories.to_list()
 
             pred_prob[tv]["scores"] = \
-                dd.DiscreteDistribution(domain=target_labels,
-                                        index=self.data_test_index)
+                DiscreteDistribution(domain=target_labels,
+                                     index=self.data_test_index)
 
         data_train_test_slide = self.sliding_split(
             data_train_idx, data_test_idx)

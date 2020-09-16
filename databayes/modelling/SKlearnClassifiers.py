@@ -2,9 +2,8 @@ import numpy as np
 import pandas as pd
 import pydantic
 import typing
-import databayes.modelling.DiscreteDistribution as dd
-import databayes.modelling.DiscreteVariable as dv
-import databayes.modelling.core as dcm
+from .DiscreteDistribution import DiscreteDistribution
+from .MLModel import FitParametersBase, MLModel, HyperParametersBase
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 import pkg_resources
@@ -13,11 +12,11 @@ if 'ipdb' in installed_pkg:
     import ipdb
 
 
-class MLPClassifierFitParameters(dcm.FitParametersBase):
+class MLPClassifierFitParameters(FitParametersBase):
     pass
 
 
-class MLPClassifierHyperParameters(dcm.HyperParametersBase):
+class MLPClassifierHyperParameters(HyperParametersBase):
     hidden_layer_sizes: tuple = pydantic.Field(
         (100,), description="The ith element represents the number of neurons in the ith hidden layer.")
     activation: str = pydantic.Field(
@@ -84,11 +83,11 @@ class MLPClassifierHyperParameters(dcm.HyperParametersBase):
         return val
 
 
-class RandomForestFitParameters(dcm.FitParametersBase):
+class RandomForestFitParameters(FitParametersBase):
     pass
 
 
-class RandomForestHyperParameters(dcm.HyperParametersBase):
+class RandomForestHyperParameters(HyperParametersBase):
     n_estimators: int = pydantic.Field(
         100, description="The number of trees in the forest")
     criterion: str = pydantic.Field(
@@ -128,7 +127,7 @@ class RandomForestHyperParameters(dcm.HyperParametersBase):
         None, description="If bootstrap is True, the number of samples to draw from X to train each base estimator")
 
 
-class MLSklearnClassifierModel(dcm.MLModel):
+class MLSklearnClassifierModel(MLModel):
 
     column_mapping: typing.Dict[str, typing.Dict[typing.Union[str, int],
                                                  typing.Union[str, int]]] = \
@@ -219,8 +218,8 @@ class MLSklearnClassifierModelMultiLabel(MLSklearnClassifierModel):
                                              **self.predict_parameters.dict(), **kwds)
 
         pred_res = {tv:
-                    {"scores": dd.DiscreteDistribution(index=data.index,
-                                                       domain=list(self.column_mapping[tv]['label'].keys()))
+                    {"scores": DiscreteDistribution(index=data.index,
+                                                    domain=list(self.column_mapping[tv]['label'].keys()))
                      }
                     for tv in self.var_targets}
 
@@ -233,10 +232,10 @@ class MLSklearnClassifierModelMultiLabel(MLSklearnClassifierModel):
             var_domain = self.transform_mapping(
                 domain_pred, column_name=tv, from_int_to_str=True)
 
-            pred_res[tv]["scores"].loc[:, var_domain] = dd.DiscreteDistribution(y_pred,
-                                                                                index=data.index,
-                                                                                domain=var_domain
-                                                                                )
+            pred_res[tv]["scores"].loc[:, var_domain] = DiscreteDistribution(y_pred,
+                                                                             index=data.index,
+                                                                             domain=var_domain
+                                                                             )
         return pred_res
 
 
@@ -271,7 +270,7 @@ class MLSklearnClassifierModelBinaryLabel(MLSklearnClassifierModel):
 
             if len(self.model[tv].classes_) > 1:
                 pred_res[tv] = \
-                    {"scores": dd.DiscreteDistribution(
+                    {"scores": DiscreteDistribution(
                         y_pred_dict[tv],
                         index=data.index,
                         domain=self.transform_mapping(
@@ -280,7 +279,7 @@ class MLSklearnClassifierModelBinaryLabel(MLSklearnClassifierModel):
                 }
             else:
                 pred_res[tv] = \
-                    {"scores": dd.DiscreteDistribution(
+                    {"scores": DiscreteDistribution(
                         1,
                         index=data.index,
                         domain=self.transform_mapping(

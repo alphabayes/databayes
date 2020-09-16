@@ -1,27 +1,24 @@
-from databayes.modelling.DiscreteDistribution import DiscreteDistribution
-from databayes.modelling.SKlearnClassifiers import RandomForestModel
-from databayes.utils.ml_performance import MLPerformance
+from import_pkg import DiscreteDistribution, RandomForestModel, MLPerformance
 import yaml
-import pprint
 import numpy as np
 import pandas as pd
 import logging
 import pytest
 import os
-import sys
 import json
 from copy import deepcopy
 import pkg_resources
 
 installed_pkg = {pkg.key for pkg in pkg_resources.working_set}
 if 'ipdb' in installed_pkg:
-    import ipdb
+    import ipdb  # noqa: F401
 
 
 logger = logging.getLogger()
 
 DATA_DIR = "data"
 EXPECTED_DIR = "expected"
+
 
 def discretize_data(data_df):
 
@@ -44,6 +41,7 @@ def discretize_data(data_df):
 
     return data_ddf
 
+
 @pytest.fixture(scope="module")
 def gmaobus_ml_performance_specs():
     filename = os.path.join(DATA_DIR, "gmaobus_ml_performance.yaml")
@@ -53,6 +51,7 @@ def gmaobus_ml_performance_specs():
         except yaml.YAMLError as exc:
             if not (logger is None):
                 logger.error(exc)
+
 
 @pytest.fixture(scope="module")
 def gmaobus_models_specs():
@@ -64,12 +63,14 @@ def gmaobus_models_specs():
             if not (logger is None):
                 logger.error(exc)
 
+
 @pytest.fixture
 def gmaobus_om_ot_100_df():
     filename = os.path.join(DATA_DIR, "gmaobus_om_ot_100.csv")
     df = pd.read_csv(filename, sep=";")
 
     return df
+
 
 @pytest.fixture
 def gmaobus_om_ot_10000_df():
@@ -78,28 +79,32 @@ def gmaobus_om_ot_10000_df():
 
     return df
 
+
 def test_RandomForestModel_001(gmaobus_models_specs, gmaobus_om_ot_100_df):
 
     rf_ml = RandomForestModel(**gmaobus_models_specs["rf_02"])
 
-    gmaobus_om_ot_100_df[rf_ml.var_targets] = gmaobus_om_ot_100_df[rf_ml.var_targets].astype('category')
+    gmaobus_om_ot_100_df[rf_ml.var_targets] = gmaobus_om_ot_100_df[rf_ml.var_targets].astype(
+        'category')
 
     for feature in rf_ml.var_features:
         if not gmaobus_om_ot_100_df[feature].dtypes in ['int', 'float']:
-            gmaobus_om_ot_100_df[feature] = gmaobus_om_ot_100_df[feature].astype('category')
+            gmaobus_om_ot_100_df[feature] = gmaobus_om_ot_100_df[feature].astype(
+                'category')
 
     data_train_df = gmaobus_om_ot_100_df[:50]
     data_test_df = gmaobus_om_ot_100_df.loc[25:]
 
     rf_ml.fit(data_train_df)
     pred_test = rf_ml.predict(data_test_df)
-    
+
     for var in pred_test.keys():
         for pred_key in pred_test.get(var, {}).keys():
             pred_res = pred_test.get(var, {}).get(pred_key, {})
 
     assert isinstance(pred_test["ODM_LIBELLE"]
                       ["scores"], DiscreteDistribution)
+
 
 @pytest.mark.slow
 def test_RandomForestModel_002(gmaobus_models_specs, gmaobus_om_ot_10000_df, gmaobus_ml_performance_specs):
@@ -122,7 +127,7 @@ def test_RandomForestModel_002(gmaobus_models_specs, gmaobus_om_ot_10000_df, gma
     ml_perf_gar_str = MLPerformance(
         model=rf_ml_str,
         **deepcopy(ml_perf_param))
-    
+
     ml_perf_gar_str.run(data,
                         logger=logger,
                         progress_mode=True)
@@ -139,7 +144,6 @@ def test_RandomForestModel_002(gmaobus_models_specs, gmaobus_om_ot_10000_df, gma
                         progress_mode=True)
 
     assert ml_perf_gar_int.measures_approx_equal(ml_perf_gar_str)
-
 
 
 def test_RandomForestModel_003_01(gmaobus_models_specs, gmaobus_om_ot_100_df):
@@ -162,6 +166,7 @@ def test_RandomForestModel_003_01(gmaobus_models_specs, gmaobus_om_ot_100_df):
 
         assert np.allclose(pred_prob[tv]["scores"], expected_prob)
 
+
 @pytest.mark.slow
 def test_RandomForestModel_003_02(gmaobus_models_specs, gmaobus_om_ot_10000_df):
 
@@ -182,6 +187,7 @@ def test_RandomForestModel_003_02(gmaobus_models_specs, gmaobus_om_ot_10000_df):
             expected_filename, index_col=0)
 
         assert np.allclose(pred_prob[tv]["scores"], expected_prob)
+
 
 def test_RandomForestModel_004_01(gmaobus_models_specs, gmaobus_om_ot_100_df, gmaobus_ml_performance_specs):
 
@@ -214,6 +220,7 @@ def test_RandomForestModel_004_01(gmaobus_models_specs, gmaobus_om_ot_100_df, gm
     ml_perf_expected = MLPerformance(**ml_perf_expected_specs)
 
     assert ml_perf.measures_approx_equal(ml_perf_expected)
+
 
 @pytest.mark.slow
 def test_RandomForestModel_004_02(gmaobus_models_specs, gmaobus_om_ot_10000_df, gmaobus_ml_performance_specs):
@@ -248,6 +255,7 @@ def test_RandomForestModel_004_02(gmaobus_models_specs, gmaobus_om_ot_10000_df, 
 
     assert ml_perf.measures_approx_equal(ml_perf_expected)
 
+
 def test_RandomForestModel_005(gmaobus_models_specs, gmaobus_om_ot_10000_df, gmaobus_ml_performance_specs):
 
     model_param = deepcopy(gmaobus_models_specs["rf_01"])
@@ -255,7 +263,7 @@ def test_RandomForestModel_005(gmaobus_models_specs, gmaobus_om_ot_10000_df, gma
     ml_perf_param = deepcopy(
         gmaobus_ml_performance_specs["ml_performance_analysis_02"])
 
-    rf_ml = RandomForestModel(**model_param)  
+    rf_ml = RandomForestModel(**model_param)
 
     ml_perf = MLPerformance(
         model=rf_ml,
@@ -269,16 +277,13 @@ def test_RandomForestModel_005(gmaobus_models_specs, gmaobus_om_ot_10000_df, gma
 
     ml_perf_expected_filename = os.path.join(EXPECTED_DIR,
                                              "test_MLPClassifierModel_005_01_perf.json")
-    
+
     # with open(ml_perf_expected_filename, 'w') as json_file:
     #     json.dump(ml_perf.dict(), json_file)
-    
+
     with open(ml_perf_expected_filename, 'r') as json_file:
         ml_perf_expected_specs = json.load(json_file)
 
     ml_perf_expected = MLPerformance(**ml_perf_expected_specs)
 
     assert ml_perf.measures_approx_equal(ml_perf_expected)
-
-
-    

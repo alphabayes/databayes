@@ -1,17 +1,14 @@
-import pyAgrum.lib.pretty_print as gum_pp
 import pyAgrum as gum
-import databayes.modelling.DiscreteDistribution as dd
-import databayes.modelling.DiscreteVariable as dv
-import databayes.modelling.core as dcm
+from .DiscreteDistribution import DiscreteDistribution
+from .DiscreteVariable import DiscreteVariable
+from .MLModel import FitParametersBase, MLModel
 from termcolor import colored
-import numpy as np
 import pandas as pd
 import tqdm
 import typing_extensions
 import pydantic
 import typing
 import copy
-import re
 import pkg_resources
 import warnings
 
@@ -48,7 +45,7 @@ class BayesianNetwork(pydantic.BaseModel):
     __slots__ = ('bn',)
 
     name: str = pydantic.Field("", description="Bayes net title")
-    variables: typing.Dict[str, typing.Optional[dv.DiscreteVariable]] = pydantic.Field(
+    variables: typing.Dict[str, typing.Optional[DiscreteVariable]] = pydantic.Field(
         {}, description="Discrete variable specification")
     parents: typing.Dict[str, typing.List[str]] = pydantic.Field(
         {}, description="Dictionary giving for each variable the list of their parents")
@@ -62,7 +59,7 @@ class BayesianNetwork(pydantic.BaseModel):
 
         for var_name, var in variables.items():
             if var is None:
-                variables[var_name] = dv.DiscreteVariable()
+                variables[var_name] = DiscreteVariable()
             variables[var_name].name = var_name
         return variables
 
@@ -267,7 +264,7 @@ class BayesianNetwork(pydantic.BaseModel):
 
     def update_variable(self, **var_specs):
         """ Update variables specs."""
-        new_var = dv.DiscreteVariable(**var_specs)
+        new_var = DiscreteVariable(**var_specs)
 
         # Just add variable
         self.variables[new_var.name] = new_var
@@ -344,9 +341,9 @@ class BayesianNetwork(pydantic.BaseModel):
                 var_domain = dfs.astype(str).astype(
                     "category").cat.categories.to_list()
 
-            var = dv.DiscreteVariable(name=var_name,
-                                      domain=var_domain,
-                                      domain_type=var_domain_type)
+            var = DiscreteVariable(name=var_name,
+                                   domain=var_domain,
+                                   domain_type=var_domain_type)
 
             self.variables[var_name] = var
 
@@ -714,8 +711,8 @@ class BayesianNetwork(pydantic.BaseModel):
 
         # TODO: Use DiscreteDistribution
         pred_res = \
-            {tv: {"scores": dd.DiscreteDistribution(index=data.index,
-                                                    **self.variables[tv].dict()),
+            {tv: {"scores": DiscreteDistribution(index=data.index,
+                                                 **self.variables[tv].dict()),
                   "comp_ok": pd.Series(True, index=data.index)}
              for tv in var_targets}
         for data_id, data_cur in tqdm.tqdm(data.iterrows(),
@@ -775,13 +772,13 @@ class BayesianNetwork(pydantic.BaseModel):
     #             raise ValueError(err_msg)
 
 
-class BayesianNetworkFitParameters(dcm.FitParametersBase):
+class BayesianNetworkFitParameters(FitParametersBase):
     update_fit: bool = pydantic.Field(
         False, description="Indicates if fitting process will update current CPT parameters during the fitting process (update_fit=True) or erase current CPT parameters with results of the last fitting process (update_fit=False)")
     update_decay: float = pydantic.Field(0, description="Fitting Update decay")
 
 
-class BayesianNetworkModel(dcm.MLModel):
+class BayesianNetworkModel(MLModel):
 
     type: str = pydantic.Field(
         "BayesianNetworkModel", description="Type of the model")
