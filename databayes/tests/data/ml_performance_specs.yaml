@@ -1,0 +1,76 @@
+ml_performance_analysis_01:
+  
+  fit_parameters:
+    percentage_training_data: 0.9
+    training_sliding_window_size: 1
+    testing_sliding_window_size: 1
+    is_test_pct: True
+    is_train_pct: True
+
+  measures:
+    #confusion_matrix:
+    success:
+      map_k: [1,2,3,4,5]
+    #joined_accuracy:
+      #  k_values: [1,2,3,4,5,6,7,8]
+      #  p_values: [1.0]
+
+ml_performance_analysis_02:
+  fit_parameters:
+    percentage_training_data: 0.7
+    training_sliding_window_size: 1
+    testing_sliding_window_size: 1
+    is_test_pct: True
+    is_train_pct: True
+
+  measures:
+    success:
+      map_k: [1,2,3,4,5]
+
+ml_performance_analysis_03:
+  fit_parameters:
+    percentage_training_data: 0.5
+    training_sliding_window_size: 1
+    testing_sliding_window_size: 1
+    is_test_pct: True
+    is_train_pct: True
+
+ml_performance_analysis_04:
+  fit_parameters:
+    percentage_training_data: 0.5
+    training_sliding_window_size: 0.5
+    testing_sliding_window_size: 1
+    is_test_pct: True
+    is_train_pct: True
+
+ml_performance_analysis_05:
+  fit_parameters:
+    percentage_training_data: 0.5
+    training_sliding_window_size: 0.5
+    testing_sliding_window_size: 0.25
+    is_test_pct: True
+    is_train_pct: True
+
+ml_performance_analysis_06:
+  fit_parameters:
+    percentage_training_data: 0.5
+    training_sliding_window_size: 7
+    testing_sliding_window_size: 1
+    is_test_pct: True
+    is_train_pct: False
+
+ml_performance_analysis_07:
+  fit_parameters:
+    percentage_training_data: 0.5
+    training_sliding_window_size: 5
+    testing_sliding_window_size: 1
+    is_test_pct: False
+    is_train_pct: False
+
+ml_performance_analysis_08:
+  fit_parameters:
+    percentage_training_data: 0.5
+    training_sliding_window_size: 0.75
+    testing_sliding_window_size: 7
+    is_test_pct: False
+    is_train_pct: True

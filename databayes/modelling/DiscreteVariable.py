@@ -28,6 +28,8 @@ class DiscreteVariable(pydantic.BaseModel):
         if len(obj["domain"]) > 0:
             obj["domain_type"] = cls.detect_domain_type(obj["domain"])
             if obj["domain_type"] == "interval":
+                # Ensure domain label is of type str (Pandas Interval case)
+                obj["domain"] = [str(lab) for lab in obj["domain"]]
                 obj["bins"] = cls.labels_to_bins(obj["domain"])
             elif obj["domain_type"] == "numeric":
                 obj["domain"].sort()
@@ -49,6 +51,10 @@ class DiscreteVariable(pydantic.BaseModel):
 
         if all([isinstance(lab, numbers.Real) for lab in domain]):
             return "numeric"
+
+        if all([isinstance(lab, pd._libs.interval.Interval)
+                for lab in domain]):
+            return "interval"
 
         if all([isinstance(lab, str) for lab in domain]):
             # For now the check is very simple as we only test

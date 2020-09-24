@@ -8,6 +8,7 @@ from ..modelling.MLModel import MLModel
 from ..modelling.DiscreteDistribution import DiscreteDistribution
 from .performance_measure import PerformanceMeasureBase
 
+import pandas as pd
 import dash
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
@@ -69,6 +70,13 @@ class MLPerformance(pydantic.BaseModel):
     data_test_index: typing.Any = pydantic.Field(
         None, description="Internal attribute to store data test indexes")
 
+    data_test: pd.DataFrame = pydantic.Field(
+        pd.DataFrame(), description="Data test")
+
+    # Dict of DiscreteDistribution
+    pred_prob: dict = pydantic.Field(
+        {}, description="Data prediction probability")
+
     @pydantic.validator('measures', pre=True)
     def match_dict_attribut(cls, measures):
 
@@ -92,6 +100,15 @@ class MLPerformance(pydantic.BaseModel):
                 measure_classes_d.get(measure_class_name)(**measure_specs)
 
         return measures
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    def json(self, exclude=None, **kwargs):
+        return super().json(exclude={"data_test", "pred_prob"}, **kwargs)
+
+    def dict(self, exclude=None, **kwargs):
+        return super().dict(exclude={"data_test", "pred_prob"}, **kwargs)
 
     def measures_approx_equal(self, other, **kwargs):
 
@@ -138,8 +155,6 @@ class MLPerformance(pydantic.BaseModel):
             data_train_idx = group_list[:int(percent_train * len(group_list))]
             data_test_idx = group_list[int(percent_train * len(group_list)):]
 
-            # TODO: mettre en cohérence les index après group by
-            # Le code ci-dessous est censé marcher mais un bug apparait, à creuser ..
             index_name = data.index.name if not(data.index.name is None) \
                 else "index"
             data_index_grp_df = data.reset_index().set_index(self.group_by)
@@ -265,22 +280,26 @@ class MLPerformance(pydantic.BaseModel):
 
         if not(logger is None):
             logger.info("Compute predictions")
-        pred_prob = self.fit_and_predict_slide(data_prepared_df, data_train_idx, data_test_idx,
-                                               logger=logger,
-                                               progress_mode=progress_mode)
+        self.pred_prob = \
+            self.fit_and_predict_slide(data_prepared_df,
+                                       data_train_idx,
+                                       data_test_idx,
+                                       logger=logger,
+                                       progress_mode=progress_mode)
 
         if not(logger is None):
             logger.info("Compute performance measures")
 
-        data_test = data_prepared_df.loc[self.data_test_index,
-                                         self.group_by + self.model.var_features + self.model.var_targets]
+        self.data_test = \
+            data_prepared_df.loc[self.data_test_index,
+                                 self.group_by + self.model.var_features + self.model.var_targets]
 
         for pm_name, performance_measure \
             in tqdm.tqdm(self.measures.items(),
                          disable=not(progress_mode),
                          desc="Performance evaluation"):
             performance_measure.group_by = self.group_by
-            performance_measure.evaluate(data_test, pred_prob)
+            performance_measure.evaluate(self.data_test, self.pred_prob)
 
         return self.measures
 

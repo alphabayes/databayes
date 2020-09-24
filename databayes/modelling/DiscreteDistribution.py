@@ -15,8 +15,6 @@ from .DiscreteVariable import DiscreteVariable
 installed_pkg = {pkg.key for pkg in pkg_resources.working_set}
 if 'ipdb' in installed_pkg:
     import ipdb
-if "matplotlib" in installed_pkg:
-    import matplotlib.pyplot as plt
 if "plotly" in installed_pkg:
     import plotly.io as pio
     import plotly.offline as pof

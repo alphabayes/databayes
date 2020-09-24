@@ -43,7 +43,17 @@ cmapss_bn_model_02: &cmapss_bn_02
     sm_2_d:
       - cycle_id_d
 
+      
+bn_model_02:
+  var_targets:
+    - cycle_id_d
+  var_features:
+    - os_1_d
+    - sm_2_d
 
+  model: *cmapss_bn_02
+
+  
 cmapss_bn_model_03: &cmapss_bn_03
   name: cmapss_bn_model_03
 

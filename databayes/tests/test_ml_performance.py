@@ -43,7 +43,7 @@ def cmapss_models_specs():
     filename = os.path.join(DATA_DIR, "cmapss_bn_models.yaml")
     with open(filename, 'r', encoding="utf-8") as yaml_file:
         try:
-            return yaml.load(yaml_file, Loader=yaml.SafeLoader)
+            return yaml.load(yaml_file, Loader=yaml.FullLoader)
         except yaml.YAMLError as exc:
             if not (logger is None):
                 logger.error(exc)
@@ -60,9 +60,22 @@ def gmaobus_models_specs():
                 logger.error(exc)
 
 
+# TODO: Transform gmaobus_ml_performance_specs dependencies with
+# ml_performance_specs
 @pytest.fixture
 def gmaobus_ml_performance_specs():
     filename = os.path.join(DATA_DIR, "gmaobus_ml_performance.yaml")
+    with open(filename, 'r', encoding="utf-8") as yaml_file:
+        try:
+            return yaml.load(yaml_file, Loader=yaml.SafeLoader)
+        except yaml.YAMLError as exc:
+            if not (logger is None):
+                logger.error(exc)
+
+
+@pytest.fixture
+def ml_performance_specs():
+    filename = os.path.join(DATA_DIR, "ml_performance_specs.yaml")
     with open(filename, 'r', encoding="utf-8") as yaml_file:
         try:
             return yaml.load(yaml_file, Loader=yaml.SafeLoader)
@@ -157,6 +170,41 @@ def test_MLPerformance_001(gmaobus_models_specs,
     ml_perf_expected_filename = \
         os.path.join(EXPECTED_DIR,
                      "test_MLPerformance_001.json")
+
+    # with open(ml_perf_expected_filename, 'w') as json_file:
+    #     json.dump(ml_perf.dict(), json_file)
+
+    with open(ml_perf_expected_filename, 'r') as json_file:
+        ml_perf_expected_specs = json.load(json_file)
+
+    ml_perf_expected = MLPerformance(**ml_perf_expected_specs)
+
+    assert ml_perf.measures_approx_equal(ml_perf_expected)
+
+
+def test_MLPerformance_002(cmapss_models_specs,
+                           ml_performance_specs,
+                           cmapss_data_100_discrete_df):
+
+    data = cmapss_data_100_discrete_df.copy()
+
+    ml_perf_specs = ml_performance_specs.get(
+        "ml_performance_analysis_01")
+
+    model_specs = cmapss_models_specs["bn_model_02"]
+
+    # Use BayesNetModel class
+    bnet_ml = BayesianNetworkModel(**model_specs)
+
+    bnet_ml.init_from_dataframe(data)
+    ml_perf = MLPerformance(model=bnet_ml, **ml_perf_specs)
+
+    ml_perf.run(
+        data, logger=logger, progress_mode=True)
+
+    ml_perf_expected_filename = \
+        os.path.join(EXPECTED_DIR,
+                     "test_MLPerformance_002.json")
 
     # with open(ml_perf_expected_filename, 'w') as json_file:
     #     json.dump(ml_perf.dict(), json_file)
