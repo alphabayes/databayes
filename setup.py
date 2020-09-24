@@ -1,16 +1,19 @@
 from setuptools import setup, find_packages
 import os
-import packaging.version
+import pkg_resources
+installed_pkg = {pkg.key for pkg in pkg_resources.working_set}
 
 # Determine version on branch name
 active_branch = os.environ.get('CI_COMMIT_REF_NAME')
 if active_branch is None:
-    import git
+    if 'git' in installed_pkg:
+        import git
+        local_repo = git.Repo('./')
+        active_branch = local_repo.active_branch.name
 
-    local_repo = git.Repo('./')
-    active_branch = local_repo.active_branch.name
+if not(active_branch is None) and ('packaging' in installed_pkg):
+    import packaging.version  # noqa: 401
 
-if not(active_branch is None):
     # CI case
     try:
         version = str(packaging.version.Version(active_branch))
@@ -22,10 +25,7 @@ if not(active_branch is None):
             version = "unstable"
 else:
     # No CI
-    version = "unstable"
-
-# with open('requirements.txt') as f:
-#     required_pkg = f.read().splitlines()
+    version = None
 
 setup(name='databayes',
       version=version,
