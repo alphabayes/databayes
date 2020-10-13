@@ -11,3 +11,14 @@ old/
 
 nohup.out
 
+*.gz
+
+# LateX stuffs
+*.out
+*.log
+*.lof
+*.aux
+*.toc
+*.blg
+*.bbl
+docs/IMTA*/report.pdf*

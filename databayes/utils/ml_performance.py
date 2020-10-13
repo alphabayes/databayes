@@ -9,14 +9,20 @@ from ..modelling.DiscreteDistribution import DiscreteDistribution
 from .performance_measure import PerformanceMeasureBase
 
 import pandas as pd
-import dash
-import dash_bootstrap_components as dbc
-import dash_core_components as dcc
-import dash_html_components as html
-from dash.dependencies import Input, Output
 
 import pkg_resources
 installed_pkg = {pkg.key for pkg in pkg_resources.working_set}
+
+if "dash" in installed_pkg:
+    import dash
+    import dash_bootstrap_components as dbc
+    import dash_core_components as dcc
+    import dash_html_components as html
+    from dash.dependencies import Input, Output
+
+if "plotly" in installed_pkg:
+    import plotly.graph_objects as go
+
 if 'ipdb' in installed_pkg:
     import ipdb  # noqa: F401
 
@@ -70,6 +76,9 @@ class MLPerformance(pydantic.BaseModel):
     data_test_index: typing.Any = pydantic.Field(
         None, description="Internal attribute to store data test indexes")
 
+    # data_test_group_index: dict = pydantic.Field(
+    #     {}, description="Internal attribute to store data test group indexes if needed")
+
     data_test: pd.DataFrame = pydantic.Field(
         pd.DataFrame(), description="Data test")
 
@@ -96,8 +105,13 @@ class MLPerformance(pydantic.BaseModel):
                     f"Measure {measure_name} (or class {measure_class_name}) not supported")
             if measure_specs is None:
                 measure_specs = {}
-            measures[measure_name] = \
+
+            new_measure = \
                 measure_classes_d.get(measure_class_name)(**measure_specs)
+
+            if len(new_measure.name) == 0:
+                new_measure.name = measure_name
+            measures[measure_name] = new_measure
 
         return measures
 
@@ -223,6 +237,7 @@ class MLPerformance(pydantic.BaseModel):
 
             pred_prob[tv]["scores"] = \
                 DiscreteDistribution(domain=target_labels,
+                                     name=tv,
                                      index=self.data_test_index)
 
         data_train_test_slide = self.sliding_split(
@@ -260,7 +275,6 @@ class MLPerformance(pydantic.BaseModel):
                                           progress_mode=progress_mode,
                                           **kwargs)
 
-            # ipdb.set_trace()
             # pred_res[tv]["scores"] va renvoyer un DiscreteDistribution
             for tv in self.model.var_targets:
                 pred_prob[tv]["scores"].loc[d_test.index,
@@ -303,34 +317,226 @@ class MLPerformance(pydantic.BaseModel):
 
         return self.measures
 
-    ###############################################
-    #                                             #
-    #               VISUALISATIONS                #
-    #                                             #
-    ###############################################
 
-    def get_dash_layout(self, app):
+class MLPerformanceDashboard(MLPerformance):
+
+    app_name: str = pydantic.Field("Dashboard",
+                                   description="Application title")
+    app_version: str = pydantic.Field(None,
+                                      description="Application version")
+
+    app: typing.Any = pydantic.Field(
+        None,
+        description="Dashboard parameters")
+
+    def __init__(self, **data: typing.Any):
+        super().__init__(**data)
+
+        # # Default dashboard parameters
+        # default_parameters_filename = \
+        #     os.path.join(os.path.dirname(__file__),
+        #                  "XXX.yaml")
+        # with open(default_parameters_filename, 'r', encoding="utf-8") \
+        #         as yaml_file:
+        #     try:
+        #         self.dashboard = yaml.load(yaml_file,
+        #                                    Loader=yaml.SafeLoader)
+        #     except yaml.YAMLError as exc:
+        #         logging.error(exc)
+
+        if self.app is None:
+            self.app = dash.Dash(__name__,
+                                 external_stylesheets=[dbc.themes.BOOTSTRAP])
+
+    def get_title_layout(self):
 
         layout = html.Div([
-            dcc.Tabs(id='tabs-content', value=list(self.measures.keys())[0],
-                     children=[
-                dcc.Tab(label=f'{pm_name}', value=f'{pm_name}',
-                        children=performance_measure.get_dash_layout(app))
-                for pm_name, performance_measure in self.measures.items()
-            ]
-            )
+            html.H1(children=f'{self.app_name}'),
         ])
 
         return layout
 
-    def run_app(self, data, **kwargs):
+    def get_tabs_layout(self):
 
-        self.run(data, progress_mode=True)
+        layout = html.Div([
+            dcc.Tabs(id='tabs-content',
+                     children=[self.create_tab_predict_result()] +
+                     [
+                         dcc.Tab(label=f'{performance_measure.name}',
+                                 children=performance_measure.get_dash_layout(self.app))
+                         for pm_name, performance_measure in self.measures.items()
+                     ]
+                     )
+        ])
 
-        app = dash.Dash(__name__, suppress_callback_exceptions=True,
-                        external_stylesheets=[dbc.themes.BOOTSTRAP])
-        server = app.server
+        return layout
 
-        app.layout = self.get_dash_layout(app)
+    def get_app_layout(self):
 
-        app.run_server(**kwargs)
+        layout = html.Div(
+            [
+                self.get_title_layout(),
+                self.get_tabs_layout(),
+            ])
+
+        return layout
+
+    def create_tab_predict_result(self, **tab_specs):
+        tab_id = "predict_result"
+
+        # Init figures
+        # graph_list = []
+        # for value_name in tab_specs.get("values").keys():
+        #     graph_list.append(dcc.Graph(
+        #         figure=self.create_rfa_figure(value_name, **tab_specs),
+        #         id=f"{tab_id}_graph_{value_name}")
+        #     )
+        tab = dcc.Tab(id=tab_id,
+                      label="Predictions",
+                      children=dbc.Row([
+                          dbc.Col(self.tab_predict_result_ctrl(
+                              id=f"{tab_id}_ctrl",
+                              **tab_specs), width=2),
+                          dbc.Col(self.tab_predict_result_graphs(
+                              id=f"{tab_id}_graphs", **tab_specs)),
+                      ]))
+
+        # hidden signal value for cache management
+        hidden_update_div = \
+            html.Div(id=tab_id + '_update_signal', style={'display': 'none'})
+
+        # # Create cache
+        # self.cache["rfa"] = dict(
+        #     data_sel_df=pd.DataFrame()
+        # )
+
+        # Create callbacks
+        self.tab_predict_result_cb(**tab_specs)
+
+        return html.Div([tab, hidden_update_div])
+
+    def tab_predict_result_cb(self,
+                              **params):
+        tab_id = "predict_result"
+
+        inputs = [Input(f'{tab_id}_ctrl_var_target', 'value')]
+        if len(self.group_by) >= 1:
+            inputs.append(Input(f'{tab_id}_ctrl_group', 'value'))
+
+        @self.app.callback(
+            [
+                Output(f'{tab_id}_graphs_dd_frames', 'figure'),
+                Output(f'{tab_id}_graphs_dd_all', 'figure')
+            ],
+            inputs)
+        def cb_fun(var_target, group=None):
+            index_filter = None
+            data_index = None
+            if not(group is None):
+                data_test_gb = self.data_test.groupby(self.group_by)
+                index_filter = list(data_test_gb.groups.values())[group]
+
+            if not(self.model.metadata.predict_index is None):
+                data_index = self.data_test[self.model.metadata.predict_index]
+
+            fig_dd_frames = \
+                self.pred_prob[var_target]["scores"]\
+                    .get_plotly_dd_frames_specs(index_filter=index_filter,
+                                                data_index=data_index)
+            fig_dd_all = \
+                self.pred_prob[var_target]["scores"]\
+                    .get_plotly_dd_all_specs(index_filter=index_filter,
+                                             data_index=data_index)
+
+            return go.Figure(fig_dd_frames), go.Figure(fig_dd_all)
+
+        # return cb_fun
+
+    def tab_predict_result_ctrl(self,
+                                id="predict_result_ctrl",
+                                **params):
+
+        control_layout = []
+
+        # if len(self.group_by) >= 2:
+        #     raise ValueError(
+        #         "Only variable grouping of size 1 is supported for now")
+
+        if len(self.group_by) >= 1:
+            data_test_gb = self.data_test.groupby(self.group_by)
+            data_test_groups_idx = list(data_test_gb.groups.keys())
+            if len(self.group_by) == 1:
+                data_test_groups_idx = [(idx,) for idx in data_test_groups_idx]
+
+            data_test_groups_labels = \
+                {i: ", ".join([f"{gvar}={gidx_val}"
+                               for gvar, gidx_val in zip(self.group_by, gidx)])
+                 for i, gidx in enumerate(data_test_groups_idx)}
+
+            control_layout.append(
+                dbc.Row([
+                    dbc.Col(
+                        width=1),
+                    dbc.Col(
+                        html.Label("Group"))
+                ]))
+            control_layout.append(
+                dbc.Row([
+                    dbc.Col(
+                        width=1),
+                    dbc.Col(
+                        dcc.Dropdown(
+                            value=0,
+                            options=[{'label': gval, 'value': i}
+                                     for i, gval in data_test_groups_labels.items()],
+                            id=id + "_group"))
+                ]))
+
+        var_target = list(self.pred_prob.keys())
+        control_layout.append(
+            dbc.Row([
+                dbc.Col(
+                    width=1),
+                dbc.Col(
+                    html.Label("Target variable"))
+            ]))
+        control_layout.append(
+            dbc.Row([
+                dbc.Col(
+                    width=1),
+                dbc.Col(
+                    dcc.Dropdown(
+                        value=var_target[0],
+                        options=[{'label': val, 'value': val}
+                                 for val in var_target],
+                        id=id + "_var_target"))
+            ]))
+
+        return control_layout
+
+    def tab_predict_result_graphs(self,
+                                  id="predict_result_graphs",
+                                  **params):
+
+        layout = []
+
+        layout.append(
+            dbc.Col([
+                dcc.Graph(id=id + "_dd_frames"),
+                dcc.Graph(id=id + "_dd_all")
+            ]))
+
+        return layout
+
+    def run_app(self, data,
+                logger=None,
+                progress_mode=False,
+                **kwargs):
+
+        self.run(data,
+                 logger=logger,
+                 progress_mode=progress_mode)
+
+        self.app.layout = self.get_app_layout()
+
+        self.app.run_server(**kwargs)

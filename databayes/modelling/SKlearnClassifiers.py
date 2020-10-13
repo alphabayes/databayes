@@ -9,7 +9,7 @@ from sklearn.neural_network import MLPClassifier
 import pkg_resources
 installed_pkg = {pkg.key for pkg in pkg_resources.working_set}
 if 'ipdb' in installed_pkg:
-    import ipdb
+    import ipdb  # noqa: F401
 
 
 class MLPClassifierFitParameters(FitParametersBase):
@@ -210,12 +210,11 @@ class MLSklearnClassifierModelMultiLabel(MLSklearnClassifierModel):
         self.model.fit(X, y,
                        **self.fit_parameters.dict(), **kwds)
 
-    def predict(self, data, logger=None, progress_mode=False, **kwds):
+    def predict_specs(self, data, logger=None, progress_mode=False, **kwds):
 
         X = self.transform_mapping(data[self.var_features])
 
-        y_pred_np = self.model.predict_proba(X,
-                                             **self.predict_parameters.dict(), **kwds)
+        y_pred_np = self.model.predict_proba(X, **kwds)
 
         pred_res = {tv:
                     {"scores": DiscreteDistribution(index=data.index,
@@ -253,12 +252,12 @@ class MLSklearnClassifierModelBinaryLabel(MLSklearnClassifierModel):
             self.model[tv].fit(X, y[:, i].ravel(),
                                **self.fit_parameters.dict(), **kwds)
 
-    def predict(self, data, logger=None, progress_mode=False, **kwds):
+    def predict_specs(self, data, logger=None, progress_mode=False, **kwds):
 
         X = self.transform_mapping(data[self.var_features])
 
-        y_pred_dict = {tv: self.model[tv].predict_proba(X,
-                                                        **self.predict_parameters.dict(), **kwds) for tv in self.var_targets}
+        y_pred_dict = {tv: self.model[tv].predict_proba(
+            X, **kwds) for tv in self.var_targets}
 
         pred_res = dict()
         for tv in self.var_targets:
@@ -303,7 +302,7 @@ class RandomForestModel(MLSklearnClassifierModelMultiLabel):
     hyper_parameters: RandomForestHyperParameters = pydantic.Field(
         RandomForestHyperParameters(), description="")
 
-    @ pydantic.validator('type')
+    @pydantic.validator('type')
     def check_type(cls, val):
         if val != "RandomForestModel":
             raise ValueError("Not RandomForestModel object")

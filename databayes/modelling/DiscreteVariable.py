@@ -25,6 +25,7 @@ class DiscreteVariable(pydantic.BaseModel):
 
     @pydantic.root_validator
     def check_domain(cls, obj):
+        # ipdb.set_trace()
         if len(obj["domain"]) > 0:
             obj["domain_type"] = cls.detect_domain_type(obj["domain"])
             if obj["domain_type"] == "interval":

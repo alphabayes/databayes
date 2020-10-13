@@ -173,7 +173,6 @@ def test_check_dd_prop(gmaobus_odm_libelle_01_dd):
         gmaobus_odm_libelle_01_dd.columns)
     assert gmaobus_odm_libelle_01_dd.variable.domain_type == "label"
     assert gmaobus_odm_libelle_01_dd.variable.name == "ODM_LIBELLE"
-    assert gmaobus_odm_libelle_01_dd.index.name == None
 
     # For k == 3, gmaobus_odm_libelle_01_dd has columns with identical values
     # The checking method sorts identical valued columns in different order than

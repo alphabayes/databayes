@@ -19,7 +19,7 @@ if "plotly" in installed_pkg:
     import plotly.io as pio
     import plotly.offline as pof
     import plotly.graph_objects as go
-
+    import plotly.express as px
 # ===========================================#
 #     Fonctions utilitaires pour la classe   #
 # ===========================================#
@@ -78,8 +78,6 @@ class DiscreteDistribution(FrozenClass, pd.DataFrame):
 
         super(DiscreteDistribution, self).__init__(
             probs, columns=domain, **df_specs)
-
-        self.index.name = name
 
         self._freeze()
 
@@ -288,102 +286,81 @@ class DiscreteDistribution(FrozenClass, pd.DataFrame):
     def plot_plotly(self, **specs):
         """Show plotly discrete distribution."""
 
-        fig_dict = self.specs_plotly(**specs)
+        fig_dict = self.get_plotly_dd_frames_specs(**specs)
 
         pof.plot(fig_dict, **specs)
         # pio.show(fig_dict)
 
-    def specs_plotly(self, **specs):
+    def get_plotly_dd_frames_specs(self, index_filter=None,
+                                   data_index=None, **specs):
         """Create plotly plot specs for discrete distribution."""
-        fig_dict = {}
+        if not(index_filter is None):
+            dd_data_stacked = self.loc[index_filter].stack()
+        else:
+            dd_data_stacked = self.stack()
 
-        frames = [{"data": [{'x': self.columns,
-                             'y': dist.to_list(),
-                             'width': 0.5,
-                             'type': 'bar'}],
-                   "name": str(idx)}
-                  for idx, dist in self.iterrows()]
+        dd_data_stacked.name = "prob"
+        dd_data_stacked.index.set_names(self.variable.name, 1, inplace=True)
 
-        fig_dict["data"] = frames[0]["data"]
+        if not(data_index is None):
+            data_index = data_index if index_filter is None \
+                else data_index.loc[index_filter]
 
-        layout_title_text = (self.variable.name + " "
-                             if not(self.variable.name is None)
-                             else "") + "Distribution"
+            dd_data_stacked.index.set_levels(levels=data_index,
+                                             level=0, inplace=True)
+            dd_data_stacked.index.set_names(names=data_index.name,
+                                            level=0, inplace=True)
 
-        fig_dict["layout"] = {
-            'xaxis_type': 'category',
-            'showlegend': False,
-            'hovermode': "closest",
-            'font': {
-                'family': "sans-serif",
-                'size': 18,
-                'color': "#4f4f4f"
-            },
-            'title': {
-                'x': 0.5,
-                'text': layout_title_text,
-                'xanchor': 'center',
-                'yanchor': 'top',
-            },
-            'xaxis': {
-                'title': {
-                    'text': "Domain",
-                },
-                'showline': True,
-                'linewidth': 2,
-                'linecolor': 'black',
-            },
-            'yaxis': {
-                'title': {
-                    'text': "Probability",
-                },
-                'nticks': 20,
-                'showline': True,
-                'linewidth': 0.5,
-                'linecolor': 'black',
-            }
-        }
+        dd_data_index_name = "index" if dd_data_stacked.index.names[0] is None \
+            else dd_data_stacked.index.names[0]
+        dd_data = dd_data_stacked.reset_index()
 
-        index_name = self.index.name + ": " \
-            if not(self.index.name is None) else ""
-        sliders_dict = {
-            "active": 0,
-            "yanchor": "top",
-            "xanchor": "left",
-            "currentvalue": {
-                "font": {"size": 20},
-                "prefix": index_name,
-                "visible": True,
-                "xanchor": "right"
-            },
-            "transition": {"duration": 300, "easing": "cubic-in-out"},
-            "pad": {"b": 10, "t": 50},
-            "len": 0.9,
-            "x": 0.1,
-            "y": 0,
-            "steps": []
-        }
+        ymax = min(dd_data["prob"].quantile(0.95)*1.01, 1.0)
+        # ipdb.set_trace()
+        fig = px.bar(dd_data, x=self.variable.name, y="prob",
+                     animation_frame=dd_data_index_name, range_y=[0, ymax])
 
-        fig_dict["frames"] = []
+        return fig.to_dict()
 
-        for idx, dist in self.iterrows():
-            frame = {"data": [{'x': self.columns,
-                               'y': dist.to_list(),
-                               'width': 0.5,
-                               'type': 'bar'}],
-                     "name": str(idx)}
+    def get_plotly_dd_all_specs(self, index_filter=None,
+                                data_index=None, **specs):
+        """Create plotly plot specs for discrete distribution."""
 
-            fig_dict["frames"].append(frame)
+        # ipdb.set_trace()
+        if not(index_filter is None):
+            dd_data_sel = self.loc[index_filter]
+        else:
+            dd_data_sel = self.loc[:]
 
-            slider_step = \
-                {"args": [[idx],
-                          {"frame": {"duration": 300, "redraw": False},
-                           "mode": "immediate",
-                           "transition": {"duration": 1000}}],
-                 "label": idx,
-                 "method": "animate"}
-            sliders_dict["steps"].append(slider_step)
+        dd_data_index_name = dd_data_sel.index.names[0]
+        if not(data_index is None):
+            data_index = data_index if index_filter is None \
+                else data_index.loc[index_filter]
 
-        fig_dict["layout"]["sliders"] = [sliders_dict]
+            dd_data_sel.index = data_index
+            dd_data_index_name = dd_data_sel.index.names[0]
 
-        return fig_dict
+        dd_data_plot = dd_data_sel.transpose().to_numpy()
+        # dd_data_stacked = self.loc[index_filter].stack()
+        # dd_data_stacked.name = "prob"
+        # dd_data_stacked.index.set_names(self.variable.name, 1, inplace=True)
+
+        # dd_data = dd_data_stacked.reset_index()
+
+        # ymax = min(dd_data["prob"].max()*1.01, 1.0)
+
+        fig = px.imshow(dd_data_plot,
+                        zmax=0.1,
+                        labels=dict(x=dd_data_index_name, y=self.variable.name,
+                                    color="Probability"),
+                        x=list(dd_data_sel.index),
+                        y=list(self.columns),
+                        aspect="auto",
+                        color_continuous_scale='mint'
+                        )
+
+        # fig.update_xaxes(side="top")
+        # fig = px.density_heatmap(dd_data,
+        #                          x="index",
+        #                          y=self.variable.name)
+        return fig.to_dict()

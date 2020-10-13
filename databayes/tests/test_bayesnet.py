@@ -602,4 +602,3 @@ def test_BayesianNetworkModel_002(gmaobus_models_specs, gmaobus_om_ot_100_df):
 
     assert "map" in pred_test_bis["ODM_LIBELLE"].keys()
     assert len(pred_test_bis["ODM_LIBELLE"]["map"].columns) == 4
-    assert pred_test_bis["ODM_LIBELLE"]["map"].index.name == "ODM_LIBELLE"
