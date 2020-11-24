@@ -61,7 +61,6 @@ class MLPerformance(pydantic.BaseModel):
     # TODO:
     # It may be interesting (for plotting for example) to add data_test and pred_prob as class attributes
     # with options to export it in the json or dict methods
-
     model: MLModel = pydantic.Field(...,
                                     description="Machine learning model")
     measures: typing.Dict[str, PerformanceMeasureBase] = pydantic.Field(
@@ -153,7 +152,6 @@ class MLPerformance(pydantic.BaseModel):
     def split_data(self, data, **kwargs):
         """Return splited data: percentage_training_data is
         the percentage of data in the training set."""
-
         percent_train = self.fit_parameters.percentage_training_data
 
         if self.group_by == []:
@@ -168,7 +166,6 @@ class MLPerformance(pydantic.BaseModel):
             group_list = list(data_grp.indices.keys())
             data_train_idx = group_list[:int(percent_train * len(group_list))]
             data_test_idx = group_list[int(percent_train * len(group_list)):]
-
             index_name = data.index.name if not(data.index.name is None) \
                 else "index"
             data_index_grp_df = data.reset_index().set_index(self.group_by)
@@ -181,7 +178,8 @@ class MLPerformance(pydantic.BaseModel):
 
         return data_train_idx, data_test_idx
 
-    def sliding_split(self, data_train_idx, data_test_idx, **kwargs):
+    def sliding_split(self, data_train_idx, data_test_idx,
+                      progress_mode=False, **kwargs):
         """Generator returning step by step the last training_sliding_window_size indexes of the training set
         and the first testing_sliding_window_size indexes of the testing set
 
@@ -212,7 +210,9 @@ class MLPerformance(pydantic.BaseModel):
             nb_data_test = int(len(data_test_idx) /
                                self.fit_parameters.testing_sliding_window_size)
 
-        for idx_split in range(nb_data_test+1):
+        for idx_split in tqdm.tqdm(range(nb_data_test+1),
+                                   disable=not(progress_mode),
+                                   desc="Sliding prediction process"):
             test_idx = data_test_idx[idx_split *
                                      length_test_idx:(idx_split+1)*length_test_idx]
             if (len(test_idx) == 0) or (len(train_idx) == 0):
@@ -221,7 +221,6 @@ class MLPerformance(pydantic.BaseModel):
             train_idx = train_idx[length_test_idx:] + test_idx
 
     def fit_and_predict_slide(self, data_df, data_train_idx, data_test_idx,
-                              calculate_map=False,
                               logger=None,
                               progress_mode=False,
                               **kwargs):
@@ -231,21 +230,27 @@ class MLPerformance(pydantic.BaseModel):
 
         pred_prob = dict()
         for tv in self.model.var_targets:
-            pred_prob[tv] = dict()
-            target_labels = data_df.loc[self.data_test_index,
-                                        tv].cat.categories.to_list()
+            tv_support = self.model.predict_parameters.var_discrete_support\
+                                                      .get(tv, {})
 
-            pred_prob[tv]["scores"] = \
-                DiscreteDistribution(domain=target_labels,
-                                     name=tv,
-                                     index=self.data_test_index)
+            if not(tv_support):
+                target_labels = data_df.loc[self.data_test_index,
+                                            tv].cat.categories.to_list()
+                tv_support = {"domain": target_labels}
+
+            tv_dd = DiscreteDistribution(name=tv,
+                                         index=self.data_test_index,
+                                         **tv_support)
+            pred_prob[tv] = {"scores": tv_dd}
 
         data_train_test_slide = self.sliding_split(
-            data_train_idx, data_test_idx)
+            data_train_idx, data_test_idx, progress_mode=progress_mode)
 
-        for train_idx, test_idx in tqdm.tqdm(data_train_test_slide,
-                                             disable=not(progress_mode),
-                                             desc="Sliding prediction process"):
+        # for train_idx, test_idx in tqdm.tqdm(data_train_test_slide,
+        #                                      disable=not(progress_mode),
+        #                                      desc="Sliding prediction process"):
+
+        for train_idx, test_idx in data_train_test_slide:
 
             if self.group_by != []:
                 index_name = data_df.index.name \
@@ -261,12 +266,14 @@ class MLPerformance(pydantic.BaseModel):
                 d_test = \
                     data_index_grp_df.loc[test_idx].reset_index()\
                                                    .set_index(index_name)
+
             else:
                 d_train = data_df.loc[train_idx]
                 d_test = data_df.loc[test_idx]
 
-            d_train = d_train[self.model.var_features + self.model.var_targets]
-            d_test = d_test[self.model.var_features]
+            d_train = d_train[self.model.var_features +
+                              self.model.var_targets + self.model.var_extra]
+            d_test = d_test[self.model.var_features + self.model.var_extra]
 
             self.model.fit(d_train)
 
@@ -275,27 +282,29 @@ class MLPerformance(pydantic.BaseModel):
                                           progress_mode=progress_mode,
                                           **kwargs)
 
-            # pred_res[tv]["scores"] va renvoyer un DiscreteDistribution
+            # REMINDER: pred_res[tv]["scores"] is a DiscreteDistribution
             for tv in self.model.var_targets:
-                pred_prob[tv]["scores"].loc[d_test.index,
-                                            :] = pred_res[tv]["scores"].loc[:]
+                pred_prob[tv]["scores"].loc[d_test.index, :] = \
+                    pred_res[tv]["scores"].loc[:]
 
         return pred_prob
 
-    def run(self, data, logger=None, progress_mode=False):
+    def run(self, data_df, logger=None, progress_mode=False, **kwargs):
         """Returns a dict : - keys : different model's evaluation
                             - values : dict representing the result of the related eval method"""
 
         if not(logger is None):
             logger.info("Start performance analysis")
 
-        data_prepared_df = self.prepare_data(data)
-        data_train_idx, data_test_idx = self.split_data(data_prepared_df)
+        # TODO: data preparation should be done by model class
+        # TOREMOVE
+        #data_df = self.prepare_data(data_df)
+        data_train_idx, data_test_idx = self.split_data(data_df)
 
         if not(logger is None):
             logger.info("Compute predictions")
         self.pred_prob = \
-            self.fit_and_predict_slide(data_prepared_df,
+            self.fit_and_predict_slide(data_df,
                                        data_train_idx,
                                        data_test_idx,
                                        logger=logger,
@@ -305,8 +314,11 @@ class MLPerformance(pydantic.BaseModel):
             logger.info("Compute performance measures")
 
         self.data_test = \
-            data_prepared_df.loc[self.data_test_index,
-                                 self.group_by + self.model.var_features + self.model.var_targets]
+            data_df.loc[self.data_test_index,
+                        self.group_by +
+                        self.model.var_features +
+                        self.model.var_targets +
+                        self.model.var_extra]
 
         for pm_name, performance_measure \
             in tqdm.tqdm(self.measures.items(),
@@ -320,14 +332,14 @@ class MLPerformance(pydantic.BaseModel):
 
 class MLPerformanceDashboard(MLPerformance):
 
-    app_name: str = pydantic.Field("Dashboard",
-                                   description="Application title")
-    app_version: str = pydantic.Field(None,
-                                      description="Application version")
+    dash_title: str = pydantic.Field("Dashboard",
+                                     description="Dashboard title")
+    dash_version: str = pydantic.Field(None,
+                                       description="Dashboard version")
 
-    app: typing.Any = pydantic.Field(
+    dash_app: typing.Any = pydantic.Field(
         None,
-        description="Dashboard parameters")
+        description="Dashboard backend")
 
     def __init__(self, **data: typing.Any):
         super().__init__(**data)
@@ -344,14 +356,14 @@ class MLPerformanceDashboard(MLPerformance):
         #     except yaml.YAMLError as exc:
         #         logging.error(exc)
 
-        if self.app is None:
-            self.app = dash.Dash(__name__,
-                                 external_stylesheets=[dbc.themes.BOOTSTRAP])
+        if self.dash_app is None:
+            self.dash_app = dash.Dash(__name__,
+                                      external_stylesheets=[dbc.themes.BOOTSTRAP])
 
     def get_title_layout(self):
 
         layout = html.Div([
-            html.H1(children=f'{self.app_name}'),
+            html.H1(children=f'{self.dash_title}'),
         ])
 
         return layout
@@ -363,7 +375,7 @@ class MLPerformanceDashboard(MLPerformance):
                      children=[self.create_tab_predict_result()] +
                      [
                          dcc.Tab(label=f'{performance_measure.name}',
-                                 children=performance_measure.get_dash_layout(self.app))
+                                 children=performance_measure.get_dash_layout(self.dash_app))
                          for pm_name, performance_measure in self.measures.items()
                      ]
                      )
@@ -423,7 +435,7 @@ class MLPerformanceDashboard(MLPerformance):
         if len(self.group_by) >= 1:
             inputs.append(Input(f'{tab_id}_ctrl_group', 'value'))
 
-        @self.app.callback(
+        @self.dash_app.callback(
             [
                 Output(f'{tab_id}_graphs_dd_frames', 'figure'),
                 Output(f'{tab_id}_graphs_dd_all', 'figure')
@@ -436,6 +448,7 @@ class MLPerformanceDashboard(MLPerformance):
                 data_test_gb = self.data_test.groupby(self.group_by)
                 index_filter = list(data_test_gb.groups.values())[group]
 
+            # ipdb.set_trace()
             if not(self.model.metadata.predict_index is None):
                 data_index = self.data_test[self.model.metadata.predict_index]
 
@@ -448,6 +461,7 @@ class MLPerformanceDashboard(MLPerformance):
                     .get_plotly_dd_all_specs(index_filter=index_filter,
                                              data_index=data_index)
 
+            # return None, go.Figure(fig_dd_all)
             return go.Figure(fig_dd_frames), go.Figure(fig_dd_all)
 
         # return cb_fun
@@ -537,6 +551,6 @@ class MLPerformanceDashboard(MLPerformance):
                  logger=logger,
                  progress_mode=progress_mode)
 
-        self.app.layout = self.get_app_layout()
+        self.dash_app.layout = self.get_app_layout()
 
-        self.app.run_server(**kwargs)
+        self.dash_app.run_server(**kwargs)

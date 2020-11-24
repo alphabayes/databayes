@@ -20,15 +20,6 @@ if "plotly" in installed_pkg:
     import plotly.offline as pof
     import plotly.graph_objects as go
     import plotly.express as px
-# ===========================================#
-#     Fonctions utilitaires pour la classe   #
-# ===========================================#
-
-# Fonction verifiant si l'interval left est entièrement inclus dans l'interval_right.
-
-
-def is_included(interval_left, interval_right):
-    return (interval_left.left >= interval_right.left) and (interval_left.right <= interval_right.right)
 
 
 # Classe utilisée pour geler les attributions directe
@@ -55,12 +46,16 @@ class FrozenClass(object):
 class DiscreteDistribution(FrozenClass, pd.DataFrame):
 
     # Constructeur de classe
-    def __init__(self, probs=None, name=None, domain=[], bins=[], unit=None, **df_specs):
+    def __init__(self, probs=None, name=None,
+                 domain=[], bins=[], unit=None,
+                 include_lowest=False,
+                 **df_specs):
 
         self.variable = DiscreteVariable(name=name,
                                          domain=domain,
                                          bins=bins,
-                                         unit=unit)
+                                         unit=unit,
+                                         include_lowest=include_lowest)
 
         # Remove domain_type from df_specs if specified to avoid
         # error in the following __init__ call
@@ -294,10 +289,22 @@ class DiscreteDistribution(FrozenClass, pd.DataFrame):
     def get_plotly_dd_frames_specs(self, index_filter=None,
                                    data_index=None, **specs):
         """Create plotly plot specs for discrete distribution."""
+        dd_ori = self.copy(deep=True)
+        # ipdb.set_trace()
+        #dd_ori = dd_ori.iloc[:2]
+        if self.variable.domain_type == 'interval':
+            dd_ori.columns = dd_ori.columns.astype(str)
+            #dd_ori.columns = [it.left for it in dd_ori.columns]
+
+        # TODO: Problem with index_filter a priori
+        #index_filter = None
+        # ipdb.set_trace()
+        # print(data_index)
+        #data_index = None
         if not(index_filter is None):
-            dd_data_stacked = self.loc[index_filter].stack()
+            dd_data_stacked = dd_ori.loc[index_filter].stack()
         else:
-            dd_data_stacked = self.stack()
+            dd_data_stacked = dd_ori.stack()
 
         dd_data_stacked.name = "prob"
         dd_data_stacked.index.set_names(self.variable.name, 1, inplace=True)
@@ -311,26 +318,34 @@ class DiscreteDistribution(FrozenClass, pd.DataFrame):
             dd_data_stacked.index.set_names(names=data_index.name,
                                             level=0, inplace=True)
 
+        # print(dd_data_stacked)
         dd_data_index_name = "index" if dd_data_stacked.index.names[0] is None \
             else dd_data_stacked.index.names[0]
         dd_data = dd_data_stacked.reset_index()
 
         ymax = min(dd_data["prob"].quantile(0.95)*1.01, 1.0)
+
+        #print(f"COucou L = {len(dd_data)}")
         # ipdb.set_trace()
         fig = px.bar(dd_data, x=self.variable.name, y="prob",
                      animation_frame=dd_data_index_name, range_y=[0, ymax])
+
+        #print("Ouf !")
 
         return fig.to_dict()
 
     def get_plotly_dd_all_specs(self, index_filter=None,
                                 data_index=None, **specs):
         """Create plotly plot specs for discrete distribution."""
+        dd_ori = self.copy(deep=True)
+        if self.variable.domain_type == 'interval':
+            dd_ori.columns = dd_ori.columns.astype(str)
 
         # ipdb.set_trace()
         if not(index_filter is None):
-            dd_data_sel = self.loc[index_filter]
+            dd_data_sel = dd_ori.loc[index_filter]
         else:
-            dd_data_sel = self.loc[:]
+            dd_data_sel = dd_ori.loc[:]
 
         dd_data_index_name = dd_data_sel.index.names[0]
         if not(data_index is None):
@@ -354,7 +369,7 @@ class DiscreteDistribution(FrozenClass, pd.DataFrame):
                         labels=dict(x=dd_data_index_name, y=self.variable.name,
                                     color="Probability"),
                         x=list(dd_data_sel.index),
-                        y=list(self.columns),
+                        y=list(dd_ori.columns),
                         aspect="auto",
                         color_continuous_scale='mint'
                         )

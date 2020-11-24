@@ -14,7 +14,7 @@ import warnings
 
 installed_pkg = {pkg.key for pkg in pkg_resources.working_set}
 if 'ipdb' in installed_pkg:
-    import ipdb
+    import ipdb  # noqa: F401
 
 
 _CPT_HTML_TEMPLATE = """

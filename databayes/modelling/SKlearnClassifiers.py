@@ -140,7 +140,7 @@ class MLSklearnClassifierModel(MLModel):
     def dict(self, exclude=None, **kwargs):
         return super().dict(exclude={"model"}, **kwargs)
 
-    def prepare_data(self, data):
+    def compute_data_mapping(self, data):
 
         cols = self.var_features + self.var_targets
         for column in cols:
@@ -201,9 +201,9 @@ class MLSklearnClassifierModel(MLModel):
 class MLSklearnClassifierModelMultiLabel(MLSklearnClassifierModel):
     """Type of targets : multiclass-multioutput  cf sklearn doc."""
 
-    def fit(self, data, logger=None, **kwds):
+    def fit_specs(self, data, logger=None, **kwds):
 
-        X, y = self.prepare_data(data)
+        X, y = self.compute_data_mapping(data)
 
         if len(y[0]) == 1:
             y = y.ravel()
@@ -244,9 +244,9 @@ class MLSklearnClassifierModelBinaryLabel(MLSklearnClassifierModel):
     model: typing.Dict[str, typing.Any] = pydantic.Field(
         None, description="Model storage structure")
 
-    def fit(self, data, logger=None, **kwds):
+    def fit_specs(self, data, logger=None, **kwds):
 
-        X, y = self.prepare_data(data)
+        X, y = self.compute_data_mapping(data)
 
         for i, tv in enumerate(self.var_targets):
             self.model[tv].fit(X, y[:, i].ravel(),
@@ -293,9 +293,6 @@ class RandomForestModel(MLSklearnClassifierModelMultiLabel):
     type: str = pydantic.Field(
         "RandomForestModel", description="Type of the model")
 
-    model: typing.Any = pydantic.Field(
-        RandomForestClassifier(), description="Bayesian network object")
-
     fit_parameters: RandomForestFitParameters = pydantic.Field(RandomForestFitParameters(),
                                                                description="")
 
@@ -319,7 +316,7 @@ class MLPClassifierModel(MLSklearnClassifierModelBinaryLabel):
         "MLPClassifierModel", description="Type of the model")
 
     model: typing.Dict[str, typing.Any] = pydantic.Field(
-        dict(), description="Bayesian network object")
+        dict(), description="model backend storage as a dictionnary")
 
     fit_parameters: MLPClassifierFitParameters = pydantic.Field(MLPClassifierFitParameters(),
                                                                 description="")

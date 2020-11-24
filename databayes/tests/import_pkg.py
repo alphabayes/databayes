@@ -3,4 +3,5 @@ from databayes.modelling.SKlearnClassifiers import RandomForestModel, MLPClassif
 from databayes.utils.ml_performance import MLPerformance
 from databayes.modelling.MLModel import RandomUniformModel, MLModel
 from databayes.modelling.BayesNet import BayesianNetworkModel
-from databayes.utils.etl import discretize
+from databayes.modelling import DurationModelSingleStateBase, Weibull
+from databayes.utils.etl import discretize, Discretizer

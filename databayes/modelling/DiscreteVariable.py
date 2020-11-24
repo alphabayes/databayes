@@ -22,6 +22,8 @@ class DiscreteVariable(pydantic.BaseModel):
     bins: typing.List[float] = pydantic.Field(
         [], description="Domain bins for numeric variable")
     unit: str = pydantic.Field(None, description="Unit of the variable")
+    include_lowest: bool = pydantic.Field(
+        False, description="Whether the first interval should be left-inclusive or not in case of bins specification")
 
     @pydantic.root_validator
     def check_domain(cls, obj):
@@ -38,7 +40,8 @@ class DiscreteVariable(pydantic.BaseModel):
         elif len(obj["bins"]) > 0:
 
             obj["domain_type"] = "interval"
-            obj["domain"] = cls.bins_to_labels(obj["bins"])
+            obj["domain"] = cls.bins_to_labels(
+                obj["bins"], obj["include_lowest"])
         # Relax this constraints
         # else:
         #     raise TypeError(f"labels or bins must be specified to create a DiscreteVariable")
@@ -81,10 +84,14 @@ class DiscreteVariable(pydantic.BaseModel):
         return bins
 
     @staticmethod
-    def bins_to_labels(bins):
-        return pd.IntervalIndex.from_breaks(bins)\
-                               .astype(str)\
-                               .to_list()
+    def bins_to_labels(bins, include_lowest=False):
+        intervals = pd.IntervalIndex.from_breaks(bins)\
+
+        intervals_str = intervals.astype(str)\
+                                 .to_list()
+        if include_lowest:
+            intervals_str[0] = intervals_str[0].replace("(", "[")
+        return intervals_str
 
     def pyagrum_init_var(self):
 

@@ -6,6 +6,7 @@ import pkg_resources
 
 from .DiscreteDistribution import DiscreteDistribution
 from .DiscreteVariable import DiscreteVariable
+from ..utils import Discretizer
 
 installed_pkg = {pkg.key for pkg in pkg_resources.working_set}
 if 'ipdb' in installed_pkg:
@@ -29,30 +30,40 @@ class FitParametersBase(pydantic.BaseModel):
 
 
 class PredictParametersBase(pydantic.BaseModel):
-    target_predict_mode: typing.Dict[str, dict] = pydantic.Field(
-        {}, description="Optional predict mode for variable")
 
-    smoothing: typing.Dict[str, dict] = pydantic.Field(
-        {}, description="Optional smoothing of prediction")
+    var_discrete_support: typing.Dict[str, dict] = pydantic.Field(
+        {}, description="Dictionary specifying for variables support (bins or domain)")
+
+    predict_postprocess: typing.Dict[str, dict] = pydantic.Field(
+        {}, description="Optional predict postprocessing for variable")
+
+    # var_smoothing: typing.Dict[str, dict] = pydantic.Field(
+    #     {}, description="Optional smoothing of prediction")
 
 
 class HyperParametersBase(pydantic.BaseModel):
     pass
 
 
+# class MLModelVarPreprocess(pydantic.BaseModel):
+#     discretize: dict = pydantic.Field(
+#         {}, description="Discretization specifications")
+
+
 class MLModel(pydantic.BaseModel):
-    """DEEP model schema."""
+    """ML model schema."""
+
+    # FUTUR USAGE: DB Storing
     id: str = pydantic.Field("", description="Unique id of the model")
+    tags: typing.List[str] = pydantic.Field([], description="The model tags")
 
     type: str = pydantic.Field(None, description="Model type")
-
-    tags: typing.List[str] = pydantic.Field([], description="The model tags")
 
     fit_parameters: FitParametersBase = pydantic.Field(FitParametersBase(),
                                                        description="Model fitting parameters")
 
     predict_parameters: PredictParametersBase = pydantic.Field(
-        PredictParametersBase(), description="Model prediction method parameters")
+        PredictParametersBase(), description="Prediction method parameters")
 
     hyper_parameters: HyperParametersBase = pydantic.Field(
         HyperParametersBase(), description="Hyper parameters")
@@ -62,6 +73,15 @@ class MLModel(pydantic.BaseModel):
 
     var_targets: typing.List[str] = pydantic.Field(
         default=[], description="List of target variables")
+
+    var_extra: typing.List[str] = pydantic.Field(
+        default=[], description="List of extra variables not used in the ML process but in pre or post processing")
+
+    var_discretizer: Discretizer = pydantic.Field(
+        None, description="Variable discretization specifications")
+
+    # pdf_discretizer: Discretizer = pydantic.Field(
+    #     None, description="Variable discretization specifications")
 
     model: typing.Any = pydantic.Field(
         None, description="Model storage structure")
@@ -78,56 +98,96 @@ class MLModel(pydantic.BaseModel):
         if callable(init_from_dataframe):
             init_from_dataframe(df)
 
-    def fit(self, data, logger=None, **kwds):
-        # TODO: initialiser var_features à data.columns si vide
+    def prepare_fit_data(self, data, logger=None, **kwds):
+        """ Data preparation method. This method
+        aims to be overloaded if needed"""
+
+        if not(self.var_discretizer is None):
+            data = self.var_discretizer.discretize(data, logger=logger, **kwds)
+
+        return data
+
+    def fit_specs(self, data, logger=None, **kwds):
+        """ This is the specific fitting method for each Model. This method
+        aims to be overloaded if needed"""
         self.model.fit(data, **self.fit_parameters.dict(),
                        logger=logger, **kwds)
 
+    def fit(self, data, logger=None, **kwds):
+        data_fit = self.prepare_fit_data(data, logger=logger, **kwds)
+        self.fit_specs(data_fit, logger=logger, **kwds)
+
+        return data_fit
+
     def predict_specs(self, data, logger=None, **kwds):
+        """ This is the specific prediction method for each Model. This method
+        aims to be overloaded if needed"""
         return self.model.predict(data[self.var_features], self.var_targets,
                                   logger=logger, **kwds)
 
+    def prepare_predict_data(self, data, logger=None, **kwds):
+        """ Data preparation method. This method
+        aims to be overloaded if needed"""
+        if not(self.var_discretizer is None):
+            data = self.var_discretizer.discretize(data, logger=logger, **kwds)
+
+        return data
+
     def predict(self, data, logger=None, **kwds):
-        data_pred = self.predict_specs(data, logger=logger, **kwds)
+        data_predict = self.prepare_predict_data(data, logger=logger, **kwds)
 
+        predictions = self.predict_specs(data_predict, logger=logger, **kwds)
         # Check special predict mode
-        for var, predic_mode in self.predict_parameters.target_predict_mode.items():
-            if var in data_pred.keys():
-                if predic_mode.get("mode", None) == "RUL":
+        for var, predic_postproc in self.predict_parameters.predict_postprocess.items():
+            if var in predictions.keys():
+
+                # Conditioning var > var_condition
+                if predic_postproc.get("var_condition_gt", None):
                     # Embed this into a method !
-                    var_condition = predic_mode.get("var_condition", None)
+                    var_condition = predic_postproc.get(
+                        "var_condition_gt", None)
+                    scores_df = predictions[var]["scores"].copy(deep=True)
+                    scores_df.index = data_predict[var_condition].fillna(
+                        method="bfill")
+                    scores_df.columns = scores_df.columns.astype(str)
 
-                    scores_df = data_pred[var]["scores"].copy(deep=True)
-                    scores_df.index = data[var_condition]
-
-                    def apply_conditionning(dist):
+                    def apply_condition_gt(dist):
                         cond_value = dist.name
                         dist_cond_idx = dist.index.get_loc(cond_value)
-                        dist_shifted = dist.shift(-dist_cond_idx).fillna(0)
-                        dist_cond = dist_shifted/dist_shifted.sum()
-                        return dist_cond.fillna(0)
 
+                        dist_shifted = dist.shift(-dist_cond_idx).fillna(0)
+                        if 'inf' in dist.index[-1]:
+                            # Deal with the case of the upport bound is an open interval
+                            nb_val_p_inf = dist_cond_idx + 1
+                            dist_shifted.iloc[-nb_val_p_inf:] = \
+                                dist.iloc[-1]
+                        dist_cond = dist_shifted/dist_shifted.sum()
+                        return dist_cond
+                        # return dist_cond.fillna(0)
+
+                    # ALERT: HUGE BOTTLENECK HERE !
+                    # TODO: FIND A WAY TO OPTIMIZE THIS !
                     scores_cond_df = scores_df.apply(
-                        apply_conditionning, axis=1)
+                        apply_condition_gt, axis=1)
+
+                    predictions[var]["scores"].values[:] = scores_cond_df.values[:]
+
+                # Smoothing
+                if predic_postproc.get("smoothing", None):
+                    scores_df = predictions[var]["scores"].copy(deep=True)
+
+                    smoothing = predic_postproc["smoothing"]
+                    smoothing_param = smoothing.pop("mode_params", {})
+                    scores_smoothed_df = \
+                        scores_df.rolling(axis=1, min_periods=0, center=True,
+                                          **smoothing)\
+                        .mean(**smoothing_param)
+
                     # ipdb.set_trace()
 
-                    data_pred[var]["scores"].values[:] = scores_cond_df.values[:]
+                    predictions[var]["scores"].values[:] = scores_smoothed_df.values[:]
 
-        for var, smoothing in self.predict_parameters.smoothing.items():
-            if var in data_pred.keys():
-                scores_df = data_pred[var]["scores"].copy(deep=True)
-
-                smoothing_param = smoothing.pop("mode_params", {})
-                scores_smoothed_df = \
-                    scores_df.rolling(axis=1, min_periods=0, center=True,
-                                      **smoothing)\
-                    .mean(**smoothing_param)
-
-                # ipdb.set_trace()
-
-                data_pred[var]["scores"].values[:] = scores_smoothed_df.values[:]
-
-        return data_pred
+        return predictions
 
     # TODO: IS IT RELEVANT TO KEEP FEATURE EXTRACTION METHOD HERE ?
     def change_var_features_from_feature_selection(self, evaluate_scores):

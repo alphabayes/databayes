@@ -890,6 +890,9 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
     calculation_method: str = pydantic.Field('eap', description="Whether we calculate the predicted scalar by \
                                                     calculating the eap of the DiscreteDistribution predicted or the map of this distribution")
 
+    eap_upper_bound: float = pydantic.Field(
+        None, description="Upper bound definition for EAP estimation. Useful in cas of infinite interval")
+
     plot_trajectories: dict = pydantic.Field(
         {}, description="Plotting datas for trajectories")
 
@@ -917,54 +920,54 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
 
         for tv in self.variables:
 
-            if self.calculation_method == 'eap':
-                self.result["pred"][tv] = pred_prob[tv]['scores'].E()
-            else:
-                self.result["pred"][tv] = \
-                    pred_prob[tv]['scores'].get_map().loc[:, 'map_1']
-
+            # Compute prediction
             if pred_prob[tv]['scores'].variable.domain_type == 'numeric':
-                # if self.calculation_method == 'eap':
-                #     # NOTE: On change le type categorical de data_test en float pour pouvoir faire la soustraction
-                #     self.result["pred"] = pred_prob[tv]['scores'].E()
-                self.result["ae"][tv] = \
-                    (self.result["pred"][tv].astype(float) -
-                     data_test[tv].astype(float)).abs()
-
-                # elif self.calculation_method == 'map':
-                #     self.result["ae"][tv] = abs(pred_prob[tv]['scores'].get_map(
-                #     ).loc[:, 'map_1'].astype('float') - data_test[tv].astype('float'))
-
-            elif pred_prob[tv]['scores'].variable.domain_type == 'interval':
-                # TODO: Update code for interval
-                interval_values = \
-                    [
-                        (float(lab.split(",")[0][1:]),
-                         float(lab.split(",")[1][0:-1]))
-                        for lab in data_test[tv]
-                    ]
-
-                data_test_intervals = [pd.Interval(it[0], it[1]).mid
-                                       for it in interval_values]
 
                 if self.calculation_method == 'eap':
-                    self.result["ae"][tv] = abs(
-                        pred_prob[tv]['scores'].E() - data_test_intervals)
-
+                    self.result["pred"][tv] = pred_prob[tv]['scores'].E()
                 elif self.calculation_method == 'map':
+                    self.result["pred"][tv] = \
+                        pred_prob[tv]['scores'].get_map().loc[:, 'map_1']
+                else:
+                    raise ValueError(
+                        f"Calculation method not supported for numeric variable: {self.calculation_method}")
 
-                    interval_map_values = \
-                        [
-                            (float(lab.split(",")[0][1:]),
-                                float(lab.split(",")[1][0:-1]))
-                            for lab in pred_prob[tv]['scores'].get_map().loc[:, 'map_1']
-                        ]
+            elif pred_prob[tv]['scores'].variable.domain_type == 'interval':
 
-                    map_intervals = pd.Series([pd.Interval(it[0], it[1]).mid
-                                               for it in interval_map_values], index=data_test.index)
+                # if pred_prob[tv]['scores'].variable.domain_type == 'numeric':
+                #     self.result["ae"][tv] = \
+                #         (self.result["pred"][tv].astype(float) -
+                #          data_test[tv].astype(float)).abs()
 
-                    self.result["ae"][tv] = abs(
-                        map_intervals - data_test_intervals)
+                if self.calculation_method == 'eap':
+                    # ipdb.set_trace()
+                    E_params = {"upper_bound":
+                                pred_prob[tv]['scores'].columns[-1].left
+                                if self.eap_upper_bound is None
+                                else self.eap_upper_bound}
+
+                    self.result["pred"][tv] = pred_prob[tv]['scores'].E(
+                        **E_params)
+
+                # # TODO: WE CAN THINK TO ADD A MAP SUPPORT HERE BUT IS IT RELEVANT ?
+                # # TO DO SO, TRY TO ADAPT THIS CODE
+                # elif self.calculation_method == 'map':
+                #     interval_map_values = \
+                #         [
+                #             (float(lab.split(",")[0][1:]),
+                #                 float(lab.split(",")[1][0:-1]))
+                #             for lab in pred_prob[tv]['scores'].get_map().loc[:, 'map_1']
+                #         ]
+
+                #     map_intervals = pd.Series([pd.Interval(it[0], it[1]).mid
+                #                                for it in interval_map_values], index=data_test.index)
+
+                else:
+                    raise ValueError(
+                        f"Calculation method not supported for interval variable: {self.calculation_method}")
+
+            self.result["ae"][tv] = \
+                (self.result["pred"][tv] - data_test[tv].astype(float)).abs()
 
     def evaluate_mae(self, data_test, pred_prob):
 
@@ -984,47 +987,47 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
                 #mae_raw.index.name = self.group_by
                 self.result["mae"][tv] = mae_raw.reset_index()
 
-            # TOO UGLY FOR ME !!!!
-            data_test_group_list = list(data_grp.indices.keys())
-            data_index_grp_df = data_test.reset_index().set_index(self.group_by)
-            #self.variables = list(pred_prob.keys())
-            res = self.result["ae"]
-            for tv in self.variables:
+            # # TOO UGLY FOR ME !!!!
+            # data_test_group_list = list(data_grp.indices.keys())
+            # data_index_grp_df = data_test.reset_index().set_index(self.group_by)
+            # #self.variables = list(pred_prob.keys())
+            # res = self.result["ae"]
+            # for tv in self.variables:
 
-                pd.concat([data_test.loc[:, self.group_by],
-                           self.result["ae"][tv]], axis=1)
-                self.plot_trajectories[tv] = dict()
-                self.ae_trajectories[tv] = dict()
+            #     pd.concat([data_test.loc[:, self.group_by],
+            #                self.result["ae"][tv]], axis=1)
+            #     self.plot_trajectories[tv] = dict()
+            #     self.ae_trajectories[tv] = dict()
 
-                for d_test_group_index in data_test_group_list:
-                    # for group_idx, d_test in data_grp:
+            #     for d_test_group_index in data_test_group_list:
+            #         # for group_idx, d_test in data_grp:
 
-                    d_test = data_index_grp_df.loc[d_test_group_index].set_index(
-                        "index")
+            #         d_test = data_index_grp_df.loc[d_test_group_index].set_index(
+            #             "index")
 
-                    mae = round(res[tv].loc[d_test.index].sum() /
-                                res[tv].loc[d_test.index].count(), 3)
-                    #dscr = res[tv].loc[d_test.index].describe()
+            #         mae = round(res[tv].loc[d_test.index].sum() /
+            #                     res[tv].loc[d_test.index].count(), 3)
+            #         #dscr = res[tv].loc[d_test.index].describe()
 
-                    self.plot_trajectories[tv][mae] = \
-                        {
-                        'predicted': {
-                            'x': [i for i in range(len(d_test.index))],
-                            # On affiche la prediction de la RUL la plus probable (ie le map)
-                            'y': pred_prob[tv]['scores'].get_map().loc[d_test.index, 'map_1'].astype('float')
-                        },
-                        'exact': {
-                            'x': [i for i in range(len(d_test.index))],
-                            'y': d_test[tv]
-                        }
+            #         self.plot_trajectories[tv][mae] = \
+            #             {
+            #             'predicted': {
+            #                 'x': [i for i in range(len(d_test.index))],
+            #                 # On affiche la prediction de la RUL la plus probable (ie le map)
+            #                 'y': pred_prob[tv]['scores'].get_map().loc[d_test.index, 'map_1'].astype('float')
+            #             },
+            #             'exact': {
+            #                 'x': [i for i in range(len(d_test.index))],
+            #                 'y': d_test[tv]
+            #             }
 
-                    }
+            #         }
 
-                    self.ae_trajectories[tv][mae] = res[tv].loc[d_test.index]
+            #         self.ae_trajectories[tv][mae] = res[tv].loc[d_test.index]
 
-                    # self.result["mae"][tv].append(mae)
+            #         # self.result["mae"][tv].append(mae)
 
-            # ipdb.set_trace()
+            # # ipdb.set_trace()
 
     def evaluate(self, data_test, pred_prob):
         self.data_test = data_test
@@ -1104,7 +1107,7 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
                     'mirror': True
                 }
 
-            }
+                }
         }
 
         return fig_specs
@@ -1215,47 +1218,47 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
     #                                             #
     ###############################################
 
-    def plotly_hist_specs_mae(self, tv, mae):
+    # def plotly_hist_specs_mae(self, tv, mae):
 
-        fig_specs = {
-            'data':
-                [
-                    {
-                        'x': self.ae_trajectories[tv][mae],
-                        'type': 'histogram'
-                    }
-                ],
-            'layout': {
-                'template': 'plotly_white',
-                'showlegend': True,
-                'title': {
-                    'text': 'Mean absolute error',
-                    'x': 0.5,
-                    'xanchor': 'center',
-                    'yanchor': 'top',
-                    'font': {
-                        'family': "sans-serif",
-                        'size': 18,
-                        'color': "black"
-                    }
-                },
-                'showlegend': False,
-                'xaxis': {
-                    'showline': True,
-                    'linewidth': 1,
-                    'linecolor': 'black',
-                    'mirror': True
-                },
-                'yaxis': {
-                    'showline': True,
-                    'linewidth': 1,
-                    'linecolor': 'black',
-                    'mirror': True
-                }
-            }
-        }
+    #     fig_specs = {
+    #         'data':
+    #             [
+    #                 {
+    #                     'x': self.ae_trajectories[tv][mae],
+    #                     'type': 'histogram'
+    #                 }
+    #             ],
+    #         'layout': {
+    #             'template': 'plotly_white',
+    #             'showlegend': True,
+    #             'title': {
+    #                 'text': 'Mean absolute error',
+    #                 'x': 0.5,
+    #                 'xanchor': 'center',
+    #                 'yanchor': 'top',
+    #                 'font': {
+    #                     'family': "sans-serif",
+    #                     'size': 18,
+    #                     'color': "black"
+    #                 }
+    #             },
+    #             'showlegend': False,
+    #             'xaxis': {
+    #                 'showline': True,
+    #                 'linewidth': 1,
+    #                 'linecolor': 'black',
+    #                 'mirror': True
+    #             },
+    #             'yaxis': {
+    #                 'showline': True,
+    #                 'linewidth': 1,
+    #                 'linecolor': 'black',
+    #                 'mirror': True
+    #             }
+    #                 }
+    #     }
 
-        return fig_specs
+    #     return fig_specs
 
     def plotly_real_vs_pred_specs(self, tv, idx):
 
@@ -1265,7 +1268,7 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
         data_test = data_test_grp.get_group(idx_values)
         ae_val = self.result["ae"][tv].loc[data_test.index]
         pred_val = self.result["pred"][tv].loc[data_test.index]
-
+        # ipdb.set_trace()
         # TODO: Add attribute to pass x-axis name (e.g. cycle_id)
         # TODO: Move predict_index to MLPerformance level
         x_values = list(range(len(data_test)))
