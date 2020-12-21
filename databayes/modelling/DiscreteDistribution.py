@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from .DiscreteVariable import DiscreteVariable
+from ..utils import ddomain_equals
 
 # For graph plot
 
@@ -222,21 +223,36 @@ class DiscreteDistribution(FrozenClass, pd.DataFrame):
 
     # Renvoie l'espérance de l'ensemble des distributions
 
-    def E(self, lower_bound=-float("inf"), upper_bound=float("inf")):
+    def E(self,
+          ensure_finite=True,
+          lower_bound=-float("inf"),
+          upper_bound=float("inf")):
+
         self.checksum()
 
         if self.variable.domain_type == "numeric":
             expect = self @ self.variable.domain
         elif self.variable.domain_type == "interval":
-            variable_domain = [pd.Interval(max(lower_bound, it.left),
-                                           min(upper_bound, it.right))
-                               for it in self.columns]
-            expect = self @ [it.mid for it in variable_domain]
+            domain_lb = self.columns[0].left
+            domain_ub = self.columns[-1].right
+
+            if ensure_finite and (domain_lb == -float("inf")) \
+               and (lower_bound == -float("inf")):
+                lower_bound = self.columns[0].right
+            if ensure_finite and (domain_ub == float("inf")) \
+               and (upper_bound == float("inf")):
+                upper_bound = self.columns[-1].left
+
+            it_mid = [pd.Interval(max(lower_bound, it.left),
+                                  min(upper_bound, it.right)).mid
+                      for it in self.columns]
+
+            expect = self @ it_mid
         else:
             raise ValueError(
                 f"The mean is not defined for domain of type {self.variable.domain_type}")
         expect.name = "Expectancy"
-        return expect
+        return expect.astype(float)
 
     # Renvoie la variance de l'ensemble des distributions
     def sigma2(self):
@@ -252,55 +268,42 @@ class DiscreteDistribution(FrozenClass, pd.DataFrame):
     def sigma(self):
         return self.sigma2.pow(0.5)
 
-    # def plot_distribution(self):
-
-    #     # Init de la fenetre de plotting
-    #     fig = plt.figure()
-    #     fig.show()
-    #     ax = fig.add_subplot()
-
-    #     # on boucle sur les distributions existantes
-    #     for i in range(0, len(self)):
-    #         ax.plot(self.variable.domain, self.iloc[i, :].values, marker="o", ls='--', label=self.index[i],
-    #                 fillstyle='none')
-
-    #     ax.set(xlabel="Distribution Domain", ylabel="Probability",
-    #            title=self.variable.name)
-    #     plt.legend()
-
-    def plot(self, renderer="plotly", **specs):
+    def plot_pdf(self, renderer="plotly", plot_type="all", **specs):
 
         plot_method = \
-            getattr(self, "plot_" + renderer, None)
+            getattr(self, "plot_pdf_" + renderer, None)
         if callable(plot_method):
-            plot_method(**specs)
+            plot_method(plot_type=plot_type, **specs)
         else:
             raise ValueError(
                 f"Plot rendered {renderer} not supported")
 
-    def plot_plotly(self, **specs):
+    def plot_pdf_plotly(self, plot_type="all", **specs):
         """Show plotly discrete distribution."""
 
-        fig_dict = self.get_plotly_dd_frames_specs(**specs)
+        if plot_type == "all":
+            fig_dict = self.get_plotly_dd_all_specs(**specs)
+        elif plot_type == "frames":
+            fig_dict = self.get_plotly_dd_frames_specs(**specs)
+        else:
+            raise ValueError(f"PDF plot type {plot_type} unsupported")
 
-        pof.plot(fig_dict, **specs)
-        # pio.show(fig_dict)
+        # Indicate here the parameters not to be passed in
+        # plotly plot function
+        specs_to_remove = ["index_filter", "data_index", "mode"]
+        plot_specs = {k: v for k, v in specs.items()
+                      if not(k in specs_to_remove)}
+
+        pof.plot(fig_dict, **plot_specs)
 
     def get_plotly_dd_frames_specs(self, index_filter=None,
                                    data_index=None, **specs):
         """Create plotly plot specs for discrete distribution."""
         dd_ori = self.copy(deep=True)
-        # ipdb.set_trace()
-        #dd_ori = dd_ori.iloc[:2]
+
         if self.variable.domain_type == 'interval':
             dd_ori.columns = dd_ori.columns.astype(str)
-            #dd_ori.columns = [it.left for it in dd_ori.columns]
 
-        # TODO: Problem with index_filter a priori
-        #index_filter = None
-        # ipdb.set_trace()
-        # print(data_index)
-        #data_index = None
         if not(index_filter is None):
             dd_data_stacked = dd_ori.loc[index_filter].stack()
         else:
@@ -319,18 +322,18 @@ class DiscreteDistribution(FrozenClass, pd.DataFrame):
                                             level=0, inplace=True)
 
         # print(dd_data_stacked)
-        dd_data_index_name = "index" if dd_data_stacked.index.names[0] is None \
+        dd_data_index_name = "level_0" if dd_data_stacked.index.names[0] is None \
             else dd_data_stacked.index.names[0]
         dd_data = dd_data_stacked.reset_index()
 
         ymax = min(dd_data["prob"].quantile(0.95)*1.01, 1.0)
 
-        #print(f"COucou L = {len(dd_data)}")
-        # ipdb.set_trace()
-        fig = px.bar(dd_data, x=self.variable.name, y="prob",
-                     animation_frame=dd_data_index_name, range_y=[0, ymax])
+        # That should not be possible
+        variable_name = "level_1" if not(self.variable.name)\
+            else self.variable.name
 
-        #print("Ouf !")
+        fig = px.bar(dd_data, x=variable_name, y="prob",
+                     animation_frame=dd_data_index_name, range_y=[0, ymax])
 
         return fig.to_dict()
 
@@ -356,13 +359,6 @@ class DiscreteDistribution(FrozenClass, pd.DataFrame):
             dd_data_index_name = dd_data_sel.index.names[0]
 
         dd_data_plot = dd_data_sel.transpose().to_numpy()
-        # dd_data_stacked = self.loc[index_filter].stack()
-        # dd_data_stacked.name = "prob"
-        # dd_data_stacked.index.set_names(self.variable.name, 1, inplace=True)
-
-        # dd_data = dd_data_stacked.reset_index()
-
-        # ymax = min(dd_data["prob"].max()*1.01, 1.0)
 
         fig = px.imshow(dd_data_plot,
                         zmax=0.1,
@@ -374,8 +370,52 @@ class DiscreteDistribution(FrozenClass, pd.DataFrame):
                         color_continuous_scale='mint'
                         )
 
-        # fig.update_xaxes(side="top")
-        # fig = px.density_heatmap(dd_data,
-        #                          x="index",
-        #                          y=self.variable.name)
         return fig.to_dict()
+
+    @staticmethod
+    def apply_condition_gt(dist):
+        """ Compute conditional PDF P(X|X>y) for numeric domain X and y. """
+        cond_value = dist.name
+        dist_cond_idx = dist.index.get_loc(cond_value)
+
+        dist_shifted = dist.shift(-dist_cond_idx).fillna(0)
+
+        if 'inf' in dist.index[-1]:
+            # Deal with the case of the upport bound is an open interval
+            nb_val_p_inf = dist_cond_idx + 1
+            dist_shifted.iloc[-nb_val_p_inf:] = \
+                dist.iloc[-1]/nb_val_p_inf
+
+        dist_cond = dist_shifted/dist_shifted.sum()
+        return dist_cond
+
+    def condition_gt(self, data_cond):
+
+        self_copy_df = self.copy(deep=True)
+
+        # Check if domain of data_cond is identical to current variable
+        # If not try to discretize it with same schema
+        if not(ddomain_equals(data_cond, self.variable.domain)):
+            # Note : bfill is to change the first NaN introduced
+            # by the discretization of first value.
+            # ==> This is ugly
+            data_cond = \
+                pd.cut(data_cond,
+                       bins=self.variable.bins,
+                       include_lowest=self.variable.include_lowest).astype(str)
+            data_cond[data_cond == "nan"] = np.nan
+            data_cond.fillna(method="bfill", inplace=True)
+
+        self_copy_df.index = data_cond
+        self_copy_df.columns = self_copy_df.columns.astype(str)
+        # ALERT: HUGE BOTTLENECK HERE !
+        # TODO: FIND A WAY TO OPTIMIZE THIS !
+        scores_cond_df = self_copy_df.apply(
+            self.apply_condition_gt, axis=1)
+
+        new_dd = DiscreteDistribution(
+            probs=scores_cond_df.values, **self.variable.dict())
+        # Do not forget to reindex dd as origin
+        new_dd.index = self.index
+
+        return new_dd

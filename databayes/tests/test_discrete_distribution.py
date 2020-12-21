@@ -128,7 +128,7 @@ def test_dd_interval_01():
         np.testing.assert_allclose(res, io["expected"])
 
     # Test expectancy
-    np.testing.assert_allclose(dd.E(),
+    np.testing.assert_allclose(dd.E(ensure_finite=False),
                                [-float("inf"), -float("inf")])
 
     np.testing.assert_allclose(dd.E(lower_bound=-12),

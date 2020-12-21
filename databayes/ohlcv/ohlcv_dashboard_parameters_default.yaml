@@ -1,0 +1,37 @@
+tabs:
+  candles:
+    title: Candles
+
+  rfa:
+    title: Returns factors analysis
+    values:
+      close: &value_specs
+        50%:
+          ref: 
+            marker: &ref_marker_main_style
+              color: steelblue
+              size: 7
+              line:
+                color: dimgray
+                width: 1
+          sel: 
+            marker: &sel_marker_main_style
+              color: chocolate
+              size: 7
+              line:
+                color: dimgray
+                width: 1
+
+        10%: &ext_style
+          ref:
+            marker:
+              <<: *ref_marker_main_style
+              color: lightsteelblue
+          sel: 
+            marker: 
+              <<: *sel_marker_main_style
+              color: sandybrown
+
+        90%: *ext_style
+      low: *value_specs
+      high: *value_specs

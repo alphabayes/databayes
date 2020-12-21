@@ -1,0 +1,16 @@
+indic_num:
+  type: scatter
+  mode: lines
+  opacity: 0.5
+  line: &indic_num_line
+    color: '#747474'
+    width: 1
+
+indic_factor:
+  type: scatter
+  mode: markers
+  opacity: 0.5
+  marker:
+    line: *indic_num_line
+    size: 6
+    color: '#747474'

@@ -161,7 +161,7 @@ def test_MLPerformance_001(gmaobus_models_specs,
     bnet_ml = BayesianNetworkModel(**gmaobus_models_specs["bn_naive_bayes_04"])
 
     bnet_ml.init_from_dataframe(data)
-
+    # ipdb.set_trace()
     ml_perf = MLPerformance(model=bnet_ml, **ml_perf_specs)
 
     ml_perf.run(
@@ -179,6 +179,7 @@ def test_MLPerformance_001(gmaobus_models_specs,
 
     ml_perf_expected = MLPerformance(**ml_perf_expected_specs)
 
+    # ipdb.set_trace()
     assert ml_perf.measures_approx_equal(ml_perf_expected)
 
 

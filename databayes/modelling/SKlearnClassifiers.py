@@ -193,6 +193,7 @@ class MLSklearnClassifierModel(MLModel):
             X = [0 for i in range(n)]
 
             for l in range(n):
+                ipdb.set_trace()
                 X[l] = self.column_mapping[column_name]['ind'][data[l]]
 
         return X
@@ -214,8 +215,7 @@ class MLSklearnClassifierModelMultiLabel(MLSklearnClassifierModel):
 
         X = self.transform_mapping(data[self.var_features])
 
-        y_pred_np = self.model.predict_proba(X, **kwds)
-
+        y_pred_np = self.model.predict_proba(X)
         pred_res = {tv:
                     {"scores": DiscreteDistribution(index=data.index,
                                                     domain=list(self.column_mapping[tv]['label'].keys()))
@@ -228,13 +228,15 @@ class MLSklearnClassifierModelMultiLabel(MLSklearnClassifierModel):
             domain_pred = self.model.classes_ if len(
                 self.var_targets) == 1 else self.model.classes_[i]
 
-            var_domain = self.transform_mapping(
-                domain_pred, column_name=tv, from_int_to_str=True)
-
-            pred_res[tv]["scores"].loc[:, var_domain] = DiscreteDistribution(y_pred,
-                                                                             index=data.index,
-                                                                             domain=var_domain
-                                                                             )
+            # ipdb.set_trace()
+            # var_domain = self.transform_mapping(
+            #     domain_pred, column_name=tv, from_int_to_str=True)
+            # ipdb.set_trace()
+            pred_res[tv]["scores"].values[:, domain_pred] = y_pred
+            # loc[:, var_domain] = DiscreteDistribution(y_pred,
+        #                                                                      index=data.index,
+        #                                                                      domain=var_domain
+        #                                                                      )
         return pred_res
 
 
@@ -256,8 +258,8 @@ class MLSklearnClassifierModelBinaryLabel(MLSklearnClassifierModel):
 
         X = self.transform_mapping(data[self.var_features])
 
-        y_pred_dict = {tv: self.model[tv].predict_proba(
-            X, **kwds) for tv in self.var_targets}
+        y_pred_dict = {tv: self.model[tv].predict_proba(X)
+                       for tv in self.var_targets}
 
         pred_res = dict()
         for tv in self.var_targets:

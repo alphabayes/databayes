@@ -233,9 +233,18 @@ class MLPerformance(pydantic.BaseModel):
             tv_support = self.model.predict_parameters.var_discrete_support\
                                                       .get(tv, {})
 
+            # ipdb.set_trace()
             if not(tv_support):
-                target_labels = data_df.loc[self.data_test_index,
-                                            tv].cat.categories.to_list()
+                tv_dtype = data_df[tv].dtypes.name
+                if tv_dtype == "category":
+                    target_labels = data_df[tv].cat.categories.tolist()
+                elif tv_dtype == "object":
+                    target_labels = data_df[tv].unique().tolist()
+                else:
+                    raise ValueError(
+                        f"A discrete domain must be specified for "
+                        f"Target variable {tv} of type {tv_dtype}")
+
                 tv_support = {"domain": target_labels}
 
             tv_dd = DiscreteDistribution(name=tv,

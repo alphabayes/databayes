@@ -57,8 +57,8 @@ def test_Weibull_001(data_8_df):
             "V3": True
         },
         "predict_parameters": {
-            "var_targets_discrete_domain": {
-                "V1": list(range(0, 161, 10)) + [np.inf]
+            "var_discrete_support": {
+                "V1": {"bins": list(range(0, 161, 10)) + [np.inf]}
             }
         },
     }
@@ -70,4 +70,4 @@ def test_Weibull_001(data_8_df):
     model.predict(data_8_df)
 
     # ADD TEST HERE !!!!
-    ipdb.set_trace()
+    # ipdb.set_trace()

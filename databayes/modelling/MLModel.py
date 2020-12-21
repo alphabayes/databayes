@@ -134,43 +134,70 @@ class MLModel(pydantic.BaseModel):
         return data
 
     def predict(self, data, logger=None, **kwds):
+
+        # Check if some predict_parameters are overloaded in kwds
+        var_discrete_support = kwds.get("var_discrete_support")
+        if var_discrete_support:
+            self.predict_parameters.var_discrete_support.update(
+                **var_discrete_support)
+
+        predict_postprocess = kwds.get("predict_postprocess")
+        if predict_postprocess:
+            self.predict_parameters.predict_postprocess.update(
+                **predict_postprocess)
+
         data_predict = self.prepare_predict_data(data, logger=logger, **kwds)
 
         predictions = self.predict_specs(data_predict, logger=logger, **kwds)
+
+        # Add DD variable name if None
+        for tv, pred in predictions.items():
+            if not(pred["scores"].variable.name):
+                pred["scores"].variable.name = tv
+
         # Check special predict mode
         for var, predic_postproc in self.predict_parameters.predict_postprocess.items():
             if var in predictions.keys():
 
                 # Conditioning var > var_condition
                 if predic_postproc.get("var_condition_gt", None):
-                    # Embed this into a method !
                     var_condition = predic_postproc.get(
                         "var_condition_gt", None)
-                    scores_df = predictions[var]["scores"].copy(deep=True)
-                    scores_df.index = data_predict[var_condition].fillna(
-                        method="bfill")
-                    scores_df.columns = scores_df.columns.astype(str)
 
-                    def apply_condition_gt(dist):
-                        cond_value = dist.name
-                        dist_cond_idx = dist.index.get_loc(cond_value)
+                    # # ALERT: HUGE BOTTLENECK HERE !
+                    # # TODO: FIND A WAY TO OPTIMIZE THIS !
+                    scores_cond_df = \
+                        predictions[var]["scores"].condition_gt(
+                            data_predict[var_condition])
 
-                        dist_shifted = dist.shift(-dist_cond_idx).fillna(0)
-                        if 'inf' in dist.index[-1]:
-                            # Deal with the case of the upport bound is an open interval
-                            nb_val_p_inf = dist_cond_idx + 1
-                            dist_shifted.iloc[-nb_val_p_inf:] = \
-                                dist.iloc[-1]
-                        dist_cond = dist_shifted/dist_shifted.sum()
-                        return dist_cond
-                        # return dist_cond.fillna(0)
+                    # scores_df = predictions[var]["scores"].copy(deep=True)
+                    # scores_df.index = data_predict[var_condition].fillna(
+                    #     method="bfill")
+                    # scores_df.columns = scores_df.columns.astype(str)
 
-                    # ALERT: HUGE BOTTLENECK HERE !
-                    # TODO: FIND A WAY TO OPTIMIZE THIS !
-                    scores_cond_df = scores_df.apply(
-                        apply_condition_gt, axis=1)
+                    # # ipdb.set_trace()
 
-                    predictions[var]["scores"].values[:] = scores_cond_df.values[:]
+                    # def apply_condition_gt(dist):
+                    #     cond_value = dist.name
+                    #     dist_cond_idx = dist.index.get_loc(cond_value)
+
+                    #     dist_shifted = dist.shift(-dist_cond_idx).fillna(0)
+                    #     if 'inf' in dist.index[-1]:
+                    #         # Deal with the case of the upport bound is an open interval
+                    #         nb_val_p_inf = dist_cond_idx + 1
+                    #         dist_shifted.iloc[-nb_val_p_inf:] = \
+                    #             dist.iloc[-1]
+                    #     dist_cond = dist_shifted/dist_shifted.sum()
+                    #     return dist_cond
+                    #     # return dist_cond.fillna(0)
+
+                    # # ALERT: HUGE BOTTLENECK HERE !
+                    # # TODO: FIND A WAY TO OPTIMIZE THIS !
+                    # scores_cond_df = scores_df.apply(
+                    #     apply_condition_gt, axis=1)
+
+                    predictions[var]["scores"].values[:] = \
+                        scores_cond_df.values[:]
 
                 # Smoothing
                 if predic_postproc.get("smoothing", None):
@@ -185,11 +212,13 @@ class MLModel(pydantic.BaseModel):
 
                     # ipdb.set_trace()
 
-                    predictions[var]["scores"].values[:] = scores_smoothed_df.values[:]
+                    predictions[var]["scores"].values[:] = \
+                        scores_smoothed_df.values[:]
 
         return predictions
 
     # TODO: IS IT RELEVANT TO KEEP FEATURE EXTRACTION METHOD HERE ?
+
     def change_var_features_from_feature_selection(self, evaluate_scores):
         removed_variables = \
             [v for v in self.var_features
@@ -286,7 +315,7 @@ class RandomGaussianModel(MLModel):
             var_domain = self.var_targets_dv[tv].domain
             ddist = DiscreteDistribution(index=data.index,
                                          domain=var_domain)
-            ipdb.set_trace()
+            # ipdb.set_trace()
             ddist.values[:] = 1/len(var_domain)
             pred_res.setdefault(tv, {"scores": ddist})
 

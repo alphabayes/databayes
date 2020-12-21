@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import pydantic
 import textwrap
+from intervals import FloatInterval
 
 import dash
 import dash_table
@@ -646,7 +647,7 @@ class SuccessMeasure(PerformanceMeasureBase):
                 prob = map_prob.loc[current_index, col_map]
 
                 return textwrap.dedent('''
-                    Exact label: 
+                    Exact label:
                     **{value1}**.
 
                     Probability to find exact label:
@@ -890,8 +891,13 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
     calculation_method: str = pydantic.Field('eap', description="Whether we calculate the predicted scalar by \
                                                     calculating the eap of the DiscreteDistribution predicted or the map of this distribution")
 
-    eap_upper_bound: float = pydantic.Field(
-        None, description="Upper bound definition for EAP estimation. Useful in cas of infinite interval")
+    ensure_finite: bool = pydantic.Field(
+        True, description="Ensure finite error computation by replacing infinite bounds")
+
+    upper_bound: float = pydantic.Field(
+        float("inf"), description="Upper bound definition for EAP estimation. Useful in cas of infinite interval")
+    lower_bound: float = pydantic.Field(
+        -float("inf"), description="Upper bound definition for EAP estimation. Useful in cas of infinite interval")
 
     plot_trajectories: dict = pydantic.Field(
         {}, description="Plotting datas for trajectories")
@@ -913,61 +919,64 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
 
     def evaluate_ae(self, data_test, pred_prob):
 
-        #self.variables = list(pred_prob.keys())
+        # self.variables = list(pred_prob.keys())
 
         self.result["ae"] = dict()
         self.result["pred"] = dict()
 
+        numeric_comp_params = {
+            "upper_bound": self.upper_bound,
+            "lower_bound": self.lower_bound,
+            "ensure_finite": self.ensure_finite,
+        }
+
         for tv in self.variables:
 
-            # Compute prediction
+            # TODO:
+            # Make .E() and .get_map() work transparently whatever is the domain type !
+            # - OK for E()
+            # - TODO for .get_map add options to return float and ensure finite
+
+            # Compute prediction with respect
             if pred_prob[tv]['scores'].variable.domain_type == 'numeric':
 
                 if self.calculation_method == 'eap':
-                    self.result["pred"][tv] = pred_prob[tv]['scores'].E()
+                    self.result["pred"][tv] = \
+                        pred_prob[tv]['scores'].E(**numeric_comp_params)
                 elif self.calculation_method == 'map':
                     self.result["pred"][tv] = \
-                        pred_prob[tv]['scores'].get_map().loc[:, 'map_1']
+                        pred_prob[tv]['scores']\
+                        .get_map().loc[:, 'map_1'].astype(float)
                 else:
                     raise ValueError(
-                        f"Calculation method not supported for numeric variable: {self.calculation_method}")
+                        f"Calculation method not supported for numeric "
+                        f"variable: {self.calculation_method}")
 
             elif pred_prob[tv]['scores'].variable.domain_type == 'interval':
 
-                # if pred_prob[tv]['scores'].variable.domain_type == 'numeric':
-                #     self.result["ae"][tv] = \
-                #         (self.result["pred"][tv].astype(float) -
-                #          data_test[tv].astype(float)).abs()
-
                 if self.calculation_method == 'eap':
-                    # ipdb.set_trace()
-                    E_params = {"upper_bound":
-                                pred_prob[tv]['scores'].columns[-1].left
-                                if self.eap_upper_bound is None
-                                else self.eap_upper_bound}
+                    self.result["pred"][tv] = \
+                        pred_prob[tv]['scores'].E(**numeric_comp_params)
 
-                    self.result["pred"][tv] = pred_prob[tv]['scores'].E(
-                        **E_params)
+                elif self.calculation_method == 'map':
 
-                # # TODO: WE CAN THINK TO ADD A MAP SUPPORT HERE BUT IS IT RELEVANT ?
-                # # TO DO SO, TRY TO ADAPT THIS CODE
-                # elif self.calculation_method == 'map':
-                #     interval_map_values = \
-                #         [
-                #             (float(lab.split(",")[0][1:]),
-                #                 float(lab.split(",")[1][0:-1]))
-                #             for lab in pred_prob[tv]['scores'].get_map().loc[:, 'map_1']
-                #         ]
+                    map_it = pred_prob[tv]['scores'].get_map().loc[:, 'map_1']
 
-                #     map_intervals = pd.Series([pd.Interval(it[0], it[1]).mid
-                #                                for it in interval_map_values], index=data_test.index)
-
+                    self.result["pred"][tv] = \
+                        map_it.apply(lambda x: FloatInterval.from_string(x).centre)\
+                              .astype(float)
                 else:
                     raise ValueError(
-                        f"Calculation method not supported for interval variable: {self.calculation_method}")
+                        f"Calculation method not supported "
+                        f"for interval variable: {self.calculation_method}")
+
+            if data_test[tv].dtype.name == "interval":
+                d_test_tv = data_test[tv].apply(lambda x: x.mid)
+            else:
+                d_test_tv = data_test[tv].astype(float)
 
             self.result["ae"][tv] = \
-                (self.result["pred"][tv] - data_test[tv].astype(float)).abs()
+                (self.result["pred"][tv] - d_test_tv).abs()
 
     def evaluate_mae(self, data_test, pred_prob):
 
@@ -984,7 +993,7 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
                 mae_raw.name = "MAE"
                 mae_raw.index = data_grp.groups.keys()
                 mae_raw.index.set_names(self.group_by, inplace=True)
-                #mae_raw.index.name = self.group_by
+                # mae_raw.index.name = self.group_by
                 self.result["mae"][tv] = mae_raw.reset_index()
 
             # # TOO UGLY FOR ME !!!!
@@ -1107,7 +1116,7 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
                     'mirror': True
                 }
 
-                }
+                    }
         }
 
         return fig_specs
@@ -1159,7 +1168,7 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
         ]
 
         # Check button to hide features in the table
-        @app.callback(
+        @ app.callback(
             Output('table-ae', 'hidden_columns'),
             [Input('checkbox-show-columns-ae', 'value')]
         )
@@ -1180,7 +1189,7 @@ class AbsoluteErrorMeasure(PerformanceMeasureBase):
                         id='tv-ae-dropdown',
                         options=[
                             {'label': f'Target variable = {tv}',
-                                'value': tv}
+                             'value': tv}
                             for tv in self.variables
                         ],
                         value=self.variables[0]

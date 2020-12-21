@@ -4,28 +4,57 @@ import pydantic
 import pandas as pd
 import re
 import pkg_resources
+from intervals import FloatInterval
+
 installed_pkg = {pkg.key for pkg in pkg_resources.working_set}
 
 if 'ipdb' in installed_pkg:
     import ipdb  # noqa: F401
 
 
+# ETL functions
+def pdInterval_from_string(s):
+    it = FloatInterval.from_string(s)
+
+    if it.lower_inc and not(it.upper_inc):
+        closed = 'left'
+    elif not(it.lower_inc) and it.upper_inc:
+        closed = 'right'
+    elif not(it.lower_inc) and not(it.upper_inc):
+        closed = 'both'
+    else:
+        closed = 'neither'
+
+    pit = pd.Interval(left=it.lower,
+                      right=it.upper,
+                      closed=closed)
+
+    return pit
+
+
+def pdInterval_series_from_string(strlist):
+
+    it_list = [pdInterval_from_string(s)
+               for s in strlist]
+    it_s = pd.Series(it_list)
+    return it_s
+
+# ETL Classes
+# ===========
+
+
 class DiscretizationScheme(pydantic.BaseModel):
     """ Discretization specification for a Series."""
 
-    fun: typing.Callable = \
-        pydantic.Field(pd.cut,
-                       description="Discretization function")
-    params: dict = \
-        pydantic.Field({"bins": 10},
-                       description="Discretization function parameters")
+    fun: typing.Callable = pydantic.Field(pd.cut,
+                                          description="Discretization function")
+    params: dict = pydantic.Field({"bins": 10},
+                                  description="Discretization function parameters")
 
-    prefix: str = \
-        pydantic.Field("",
-                       description="Prefix of the discretized variable")
-    suffix: str = \
-        pydantic.Field("",
-                       description="Suffix of the discretized variable")
+    prefix: str = pydantic.Field("",
+                                 description="Prefix of the discretized variable")
+    suffix: str = pydantic.Field("",
+                                 description="Suffix of the discretized variable")
 
     def discretize(self, series, logging=None):
 
@@ -33,15 +62,16 @@ class DiscretizationScheme(pydantic.BaseModel):
         if isinstance(series.dtypes, pd.CategoricalDtype):
             return series
 
-        if series.dtypes in ["float", "int"]:
+        # Add 'int64' in the list for Windows compatibility
+        # in Pandas 1.1.2
+        if series.dtypes in ["float", "int", "int64"]:
 
             series_d = self.fun(series, **self.params)
             series_d.name = self.prefix + series.name + self.suffix
 
             cats_str = series_d.cat.categories.astype(str)
-            cat_type = \
-                pd.api.types.CategoricalDtype(categories=cats_str,
-                                              ordered=True)
+            cat_type = pd.api.types.CategoricalDtype(categories=cats_str,
+                                                     ordered=True)
             series_d = series_d.astype(str).astype(cat_type)
 
             if not(logging is None):
@@ -61,17 +91,15 @@ class DiscretizationScheme(pydantic.BaseModel):
 
 class Discretizer(pydantic.BaseModel):
 
-    variables: typing.Dict[str, DiscretizationScheme] = \
-        pydantic.Field({},
-                       description="Discretization specification"
-                       " for each variables."
-                       "Variable key can be given as regex")
+    variables: typing.Dict[str, DiscretizationScheme] = pydantic.Field({},
+                                                                       description="Discretization specification"
+                                                                       " for each variables."
+                                                                       "Variable key can be given as regex")
 
-    process_all_variables: bool = \
-        pydantic.Field(False,
-                       description="Try to discretize all variables."
-                       " Event those without specs using default "
-                       "discretization parameters")
+    process_all_variables: bool = pydantic.Field(False,
+                                                 description="Try to discretize all variables."
+                                                 " Event those without specs using default "
+                                                 "discretization parameters")
 
     def discretize(self, data_df, logging=None, **kwargs):
         data_ddf = data_df.copy(deep=True)
@@ -156,11 +184,10 @@ def discretize(data_df, var_specs={},
                                  **disc_params)
 
             cats_str = data_disc.cat.categories.astype(str)
-            cat_type = \
-                pd.api.types.CategoricalDtype(categories=cats_str,
-                                              ordered=True)
-            data_ddf.loc[:, var_result] = \
-                data_disc.astype(str).astype(cat_type)
+            cat_type = pd.api.types.CategoricalDtype(categories=cats_str,
+                                                     ordered=True)
+            data_ddf.loc[:, var_result] = data_disc.astype(
+                str).astype(cat_type)
 
             if not(logging is None):
                 logging.debug(
@@ -168,8 +195,8 @@ def discretize(data_df, var_specs={},
 
         else:
 
-            data_ddf.loc[:, var_result] = \
-                data_df.loc[:, var].astype("category")
+            data_ddf.loc[:, var_result] = data_df.loc[:,
+                                                      var].astype("category")
 
             if not(logging is None):
                 logging.debug(

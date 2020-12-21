@@ -522,8 +522,8 @@ class BayesianNetwork(pydantic.BaseModel):
                 transpose=False):
         """
         apriori_coef: Parameter representing the apriori weight during the fitting process compared to data. if apriori_coef is a non negative real number :
-          - the higher it is, the closer to the apriori distribution the resulting configuration distribution will be.  
-          - the lower it is, the closer to the distribution fitted by data the resulting configuration distribution will be.  
+          - the higher it is, the closer to the apriori distribution the resulting configuration distribution will be.
+          - the lower it is, the closer to the distribution fitted by data the resulting configuration distribution will be.
           User can also pass a string associated to an apriori coefficient strategy. Possible values are
           - smart: in this case, the apriori coefficient is set equal to 1/nb_data_conf if nb_data_conf > 0 else 1 where nb_data_conf is the number of data observed for a given configuration.
 
@@ -532,7 +532,7 @@ class BayesianNetwork(pydantic.BaseModel):
         apriori_data_threshold: apply apriori for a conditional distribution if the number of oberserved corresponding configurations is lower or equal than this parameter.
 
         Notes:
-        - To avoid numerical problems like joint probabilities at 0 during inference process, it is recommanded to 
+        - To avoid numerical problems like joint probabilities at 0 during inference process, it is recommanded to
           ensure non-zeros probabilities for each modalities of each variable | parents.
           => TODO: implement the smart a priori system to do that
         """
@@ -658,22 +658,23 @@ class BayesianNetwork(pydantic.BaseModel):
 
         self.bn.cpt(var_name)[:] = cpt_np
 
-    def predict(self, data, var_targets, map_k=0, probs=True, progress_mode=False, logger=None):
+    def predict(self, data, var_targets, map_k=0, probs=True,
+                progress_mode=False, logger=None, **kwrgs):
         """
-        This function is used to predict the value of a target variable from observations 
-        using a bayesian network model. 
+        This function is used to predict the value of a target variable from observations
+        using a bayesian network model.
 
         Inputs:
-        - data: the data containing the observations used to predict the target variable 
+        - data: the data containing the observations used to predict the target variable
           as a =pandas.DataFrame= object
         - var_targets: the name of the target variable as a =str= object
         - probs: indicate if posterior probabilities are returned as a DiscreteDistribution object
         - map_k: indicate if the k most probable labels are returned. (default map_k == 0)
 
         Returns:
-        - a numpy.array containing the predictions of the target variables maximising the 
-          maximum a posteriori criterion 
-        - a numpy.array containing the posterior probability distribution of the target 
+        - a numpy.array containing the predictions of the target variables maximising the
+          maximum a posteriori criterion
+        - a numpy.array containing the posterior probability distribution of the target
           variable given each observation in data.
         """
 
@@ -794,6 +795,13 @@ class BayesianNetworkModel(MLModel):
         if val != "BayesianNetworkModel":
             raise ValueError("Not BayesianNetworkModel object")
         return val
+
+    def fit_specs(self, data, logger=None, **kwds):
+
+        var = self.var_targets + self.var_features + self.var_extra
+        self.model.init_from_dataframe(data[var], add_data_var=True)
+        self.model.fit(data, **self.fit_parameters.dict(),
+                       logger=logger, **kwds)
 
     def change_var_features(self, removed_variables, inplace=False):
         """
