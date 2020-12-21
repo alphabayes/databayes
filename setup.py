@@ -1,31 +1,33 @@
 from setuptools import setup, find_packages
 import os
-import pkg_resources
-installed_pkg = {pkg.key for pkg in pkg_resources.working_set}
+# import pkg_resources
+# installed_pkg = {pkg.key for pkg in pkg_resources.working_set}
 
-# Determine version on branch name
-active_branch = os.environ.get('CI_COMMIT_REF_NAME')
-if active_branch is None:
-    if 'git' in installed_pkg:
-        import git
-        local_repo = git.Repo('./')
-        active_branch = local_repo.active_branch.name
+# # Determine version on branch name
+# active_branch = os.environ.get('CI_COMMIT_REF_NAME')
+# if active_branch is None:
+#     if 'git' in installed_pkg:
+#         import git
+#         local_repo = git.Repo('./')
+#         active_branch = local_repo.active_branch.name
 
-if not(active_branch is None) and ('packaging' in installed_pkg):
-    import packaging.version  # noqa: 401
+# if not(active_branch is None) and ('packaging' in installed_pkg):
+#     import packaging.version  # noqa: 401
 
-    # CI case
-    try:
-        version = str(packaging.version.Version(active_branch))
+#     # CI case
+#     try:
+#         version = str(packaging.version.Version(active_branch))
 
-    except packaging.version.InvalidVersion:
-        if active_branch in ['devel', 'master']:
-            version = active_branch
-        else:
-            version = "unstable"
-else:
-    # No CI
-    version = None
+#     except packaging.version.InvalidVersion:
+#         if active_branch in ['devel', 'master']:
+#             version = active_branch
+#         else:
+#             version = "unstable"
+# else:
+#     # No CI
+#     version = None
+
+version = "0.0.9rc1"
 
 setup(name='databayes',
       version=version,
