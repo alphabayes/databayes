@@ -31,6 +31,6 @@ pytest -v --runslow
 
 Just run the following command to install the library on your system :
 ```bash
-pip install git+ssh://git@gitlab.com/alphabayes/databayes.git@0.0.9
+pip install --use-feature=2020-resolver git+ssh://git@gitlab.com/alphabayes/databayes.git
 ```
 

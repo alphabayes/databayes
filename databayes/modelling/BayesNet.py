@@ -2,7 +2,7 @@ import pyAgrum as gum
 from .DiscreteDistribution import DiscreteDistribution
 from .DiscreteVariable import DiscreteVariable
 from .MLModel import FitParametersBase, MLModel
-from termcolor import colored
+import colored
 import pandas as pd
 import tqdm
 import typing_extensions
@@ -92,14 +92,14 @@ class BayesianNetwork(pydantic.BaseModel):
 
     def __str__(self):
 
-        cct_cpt_sep = colored("     |     ", "blue",
-                              attrs=["bold"])
+        cct_cpt_sep = colored.stylize("     |     ",
+                                      colored.fg("blue") + colored.attr("bold"))
 
         var_strlist = []
         for var_name, var in self.variables.items():
 
-            var_header_str = colored(f"Variable: {var_name}", "blue",
-                                     attrs=['bold'])
+            var_header_str = colored.stylize(f"Variable: {var_name}",
+                                             colored.fg("blue") + colored.attr("bold"))
 
             cct_str = self.get_cct(var_name, transpose=True).to_string()
             cpt_str = self.get_cpt(var_name, transpose=True).to_string()
@@ -677,7 +677,6 @@ class BayesianNetwork(pydantic.BaseModel):
         - a numpy.array containing the posterior probability distribution of the target
           variable given each observation in data.
         """
-
         if isinstance(data, pd.core.frame.DataFrame):
             data_pred = self.adapt_data(data)
         else:

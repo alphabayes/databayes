@@ -25,18 +25,23 @@ class OHLCVIndicatorBase(pydantic.BaseModel):
         None, description="Indicator name label used in pretty pretting")
     description: str = pydantic.Field(
         None, description="Indicator description")
-    num_suffix: str = pydantic.Field(
-        "__num", description="Suffix related to the numeric version of the indicator if exists")
-    factor_suffix: str = pydantic.Field(
-        "__factor", description="Suffix related to the categorical version of the indicator if exists")
 
-    discretization: dict = pydantic.Field(
-        None, description="Discretization specifications")
+    values: pd.Series = pydantic.Field(
+        None, description="Values of the indicator")
 
-    indic_num: pd.Series = pydantic.Field(
-        None, description="Numeric values of the indicator")
-    indic_factor: pd.Series = pydantic.Field(
-        None, description="Categorical values of the indicator")
+    # num_suffix: str = pydantic.Field(
+    #     "__num", description="Suffix related to the numeric version of the indicator if exists")
+    # factor_suffix: str = pydantic.Field(
+    #     "__factor", description="Suffix related to the categorical version of the indicator if exists")
+
+    # # TODO: Use DataBayes discretization scheme or REMOVE
+    # discretization: dict = pydantic.Field(
+    #     None, description="Discretization specifications")
+
+    # indic_num: pd.Series = pydantic.Field(
+    #     None, description="Numeric values of the indicator")
+    # indic_factor: pd.Series = pydantic.Field(
+    #     None, description="Categorical values of the indicator")
 
     open_var: str = pydantic.Field(
         "open", description="Open data variable name")
@@ -79,41 +84,48 @@ class OHLCVIndicatorBase(pydantic.BaseModel):
         conservative_merger.merge(self.plot_styling,
                                   plot_styling_default)
 
+    def split_ohlcv(self, data_ohlcv_df):
+        return data_ohlcv_df[self.open_var], \
+            data_ohlcv_df[self.high_var], \
+            data_ohlcv_df[self.low_var], \
+            data_ohlcv_df[self.close_var], \
+            data_ohlcv_df[self.volume_var]
+
     def compute(self, data, logging=logging, **kwrds):
-        logging.info(f">> Compute {self.name}")
+        logging.debug(f">> Compute {self.name}")
+        raise NotImplemented(f"Indicator {self.name} has no compute method")
+        # self.compute_numeric(data, logging=logging)
 
-        self.compute_numeric(data, logging=logging)
+        # if not(self.indic_num is None):
+        #     self.indic_num.name += self.num_suffix
 
-        if not(self.indic_num is None):
-            self.indic_num.name += self.num_suffix
+        # self.compute_factor(data, logging=logging)
 
-        self.compute_factor(data, logging=logging)
+        # if not(self.indic_factor is None):
+        #     self.indic_factor.name += self.factor_suffix
 
-        if not(self.indic_factor is None):
-            self.indic_factor.name += self.factor_suffix
+        # return self.indic_num, self.indic_factor
 
-        return self.indic_num, self.indic_factor
+    # def compute_numeric(self, data, logging=logging, **kwrds):
+    #     logging.debug(f">>> Indicator {self.name} has no numeric version")
 
-    def compute_numeric(self, data, logging=logging, **kwrds):
-        logging.info(f">>> Indicator {self.name} has no numeric version")
+    #     return self.indic_num
 
-        return self.indic_num
+    # def compute_factor(self, data, logging=logging, **kwrds):
 
-    def compute_factor(self, data, logging=logging, **kwrds):
+    #     if not(self.discretization is None) and not(self.indic_num is None):
+    #         self.indic_factor = pd.cut(self.indic_num, **self.discretization)
+    #         self.indic_factor.name = \
+    #             self.indic_factor.name.replace(self.num_suffix, "")
+    #     else:
+    #         logging.debug(f">>> Indicator {self.name} has no factor version")
 
-        if not(self.discretization is None) and not(self.indic_num is None):
-            self.indic_factor = pd.cut(self.indic_num, **self.discretization)
-            self.indic_factor.name = \
-                self.indic_factor.name.replace(self.num_suffix, "")
-        else:
-            logging.info(f">>> Indicator {self.name} has no factor version")
-
-        return self.indic_factor
+    #     return self.indic_factor
 
 
 class RSIIndicator(OHLCVIndicatorBase):
 
-    window_length: int = pydantic.Field(
+    window_size: int = pydantic.Field(
         ..., description="Time window of rolling mean to be "
         "considered in RSI computation")
 
@@ -125,13 +137,13 @@ class RSIIndicator(OHLCVIndicatorBase):
     def set_default_name_label(cls, values):
         values["name_label"] = values.get("name_label")\
             if not(values.get("name_label", None) is None)\
-            else f"RSI T{values.get('window_length')}"
+            else f"RSI T{values.get('window_size')}"
 
         return values
 
-    def compute_numeric(self,
-                        data_ohlcv,
-                        **kwrds):
+    def compute(self,
+                data_ohlcv,
+                **kwrds):
 
         close_delta = data_ohlcv[self.close_var].diff()
 
@@ -140,8 +152,8 @@ class RSIIndicator(OHLCVIndicatorBase):
         delta_down = close_delta.copy(deep=True)
         delta_down[delta_down > 0] = 0
 
-        roll_up = delta_up.rolling(self.window_length).mean()
-        roll_down = delta_down.abs().rolling(self.window_length).mean()
+        roll_up = delta_up.rolling(self.window_size).mean()
+        roll_down = delta_down.abs().rolling(self.window_size).mean()
 
         rs = roll_up.copy(deep=True)
         idx_rdp = roll_down > 0
@@ -149,6 +161,169 @@ class RSIIndicator(OHLCVIndicatorBase):
         self.indic_num = 100.0 - (100.0/(1.0 + rs))
 
         self.indic_num.name = self.name
+
+
+class ShadowLowBodyRatioIndicator(OHLCVIndicatorBase):
+    """ Compute low shadow / body ratio. """
+
+    @pydantic.validator('description', always=True)
+    def set_default_description(cls, description):
+        return "Shadow low body ratio"
+
+    @pydantic.root_validator(pre=True)
+    def set_default_name_label(cls, values):
+        values["name_label"] = values.get("name_label")\
+            if not(values.get("name_label", None) is None)\
+            else "Shadow low body ratio"
+
+        return values
+
+    def compute(self,
+                data_ohlcv_df,
+                **kwrds):
+
+        data_open, data_high, data_low, data_close, data_volume = \
+            self.split_ohlcv(data_ohlcv_df)
+
+        body_range = data_close - data_open
+
+        shadow_low_base = data_open*(body_range > 0) + \
+            data_close*(body_range <= 0)
+
+        shadow_low = shadow_low_base - data_low
+
+        self.values = shadow_low/body_range.abs()
+
+        self.values.name = self.name
+
+        return self.values
+
+
+class ShadowLowRatioIndicator(OHLCVIndicatorBase):
+    """ Compute low shadow / body + high shadow ratio. """
+
+    @pydantic.validator('description', always=True)
+    def set_default_description(cls, description):
+        return "Shadow low ratio"
+
+    @pydantic.root_validator(pre=True)
+    def set_default_name_label(cls, values):
+        values["name_label"] = values.get("name_label")\
+            if not(values.get("name_label", None) is None)\
+            else "Shadow low ratio"
+
+        return values
+
+    def compute(self,
+                data_ohlcv_df,
+                **kwrds):
+
+        data_open, data_high, data_low, data_close, data_volume = \
+            self.split_ohlcv(data_ohlcv_df)
+
+        body_range = data_close - data_open
+
+        shadow_low_base = data_open*(body_range > 0) + \
+            data_close*(body_range <= 0)
+
+        body_high_range = data_high - shadow_low_base
+        shadow_low = shadow_low_base - data_low
+
+        self.values = shadow_low/body_high_range
+
+        self.values.name = self.name
+
+        return self.values
+
+
+class MovingVolumeQuantileIndicator(OHLCVIndicatorBase):
+    """ Compute moving volume quantile. """
+
+    window_size: int = pydantic.Field(
+        50, description="Time window size of rolling quantile to be "
+        "considered in computations")
+
+    bins: list = pydantic.Field(
+        [0.5, 0.75, 0.9], description="Quantile bins to consider")
+
+    returns_dummies: bool = pydantic.Field(
+        False, description="Indicates if we want to return dummy indicators")
+
+    @pydantic.validator('description', always=True)
+    def set_default_description(cls, description):
+        return "Moving volume quantile"
+
+    @pydantic.root_validator(pre=True)
+    def set_default_name_label(cls, values):
+        values["name_label"] = values.get("name_label")\
+            if not(values.get("name_label", None) is None)\
+            else "Moving volume quantile"
+
+        return values
+
+    def compute(self,
+                data_ohlcv_df,
+                **kwrds):
+
+        data_open, data_high, data_low, data_close, data_volume = \
+            self.split_ohlcv(data_ohlcv_df)
+
+        # TO BE CONTINUED HERE !
+        # Add an attribute to control the quantile bins
+        # This indicator produce a categorical series
+        indic_name = self.name
+
+        self.values = pd.DataFrame(index=data_open.index,
+                                   columns=[indic_name])
+        q_bin_list = []
+
+        data_volume_roll = data_volume.rolling(self.window_size)
+
+        bin_left = 0
+        bin_right = self.bins[0]
+        volume_q_left = 0
+        volume_q_right = data_volume_roll.quantile(bin_right)
+        q_bin_str = f"q{100*bin_left:.0f}_{100*bin_right:.0f}"
+        q_bin_list.append(q_bin_str)
+
+        idx_q_bin = (volume_q_left <= data_volume) & \
+            (data_volume < volume_q_right)
+        if self.returns_dummies:
+            self.values[f"{indic_name}_{q_bin_str}"] = idx_q_bin
+        self.values.loc[idx_q_bin, indic_name] = q_bin_str
+
+        for bin_left, bin_right in zip(self.bins[:-1], self.bins[1:]):
+
+            volume_q_left = data_volume_roll.quantile(bin_left)
+            volume_q_right = data_volume_roll.quantile(bin_right)
+            q_bin_str = f"q{100*bin_left:.0f}_{100*bin_right:.0f}"
+            q_bin_list.append(q_bin_str)
+
+            idx_q_bin = (volume_q_left <= data_volume) & \
+                (data_volume < volume_q_right)
+            if self.returns_dummies:
+                self.values[f"{indic_name}_{q_bin_str}"] = idx_q_bin
+            self.values.loc[idx_q_bin, indic_name] = q_bin_str
+
+        bin_left = self.bins[-1]
+        bin_right = 1
+        volume_q_left = data_volume_roll.quantile(bin_left)
+        volume_q_right = float("inf")
+        q_bin_str = f"q{100*bin_left:.0f}_{100*bin_right:.0f}"
+        q_bin_list.append(q_bin_str)
+
+        idx_q_bin = (volume_q_left <= data_volume) & \
+            (data_volume < volume_q_right)
+        if self.returns_dummies:
+            self.values[f"{indic_name}_{q_bin_str}"] = idx_q_bin
+        self.values.loc[idx_q_bin, indic_name] = q_bin_str
+
+        q_bin_cats = pd.api.types.CategoricalDtype(categories=q_bin_list,
+                                                   ordered=True)
+
+        self.values[indic_name] = self.values[indic_name].astype(q_bin_cats)
+
+        return self.values
 
 
 class HammerIndicator(OHLCVIndicatorBase):
@@ -171,9 +346,9 @@ class HammerIndicator(OHLCVIndicatorBase):
 
         return values
 
-    def compute_numeric(self,
-                        data_ohlcv_df,
-                        **kwrds):
+    def compute(self,
+                data_ohlcv_df,
+                **kwrds):
         # DEBUG
         # datetime_start = datetime(2020, 10, 19, 0, 0)
         # datetime_end = datetime(2020, 10, 19, 12, 0)
@@ -207,7 +382,7 @@ class HammerIndicator(OHLCVIndicatorBase):
         trend_change_indic = \
             ((body_past_indic*body_direction_cur) < 0).astype(int)
 
-        self.indic_num = \
+        self.values = \
             hammer_df.hammer.shift(1)*hammer_trend_indic*trend_change_indic
         # self.indic_num = \
         #     hammer_df.hammer.shift(1)*hammer_trend_indic
@@ -216,13 +391,13 @@ class HammerIndicator(OHLCVIndicatorBase):
 
         # Cleaning
         # Remove NaN
-        self.indic_num = \
-            self.indic_num.replace([np.inf, -np.inf], np.nan)\
-                          .fillna(0)
+        self.values = \
+            self.values.replace([np.inf, -np.inf], np.nan)\
+            .fillna(0)
 
-        self.indic_num.name = self.name
+        self.values.name = self.name
 
-        return self.indic_num
+        return self.values
 
     def compute_hammer(self, data_ohlcv_df):
 

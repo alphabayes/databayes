@@ -86,6 +86,9 @@ class MLModel(pydantic.BaseModel):
     model: typing.Any = pydantic.Field(
         None, description="Model storage structure")
 
+    nb_data_fit: int = pydantic.Field(
+        0, description="Number of data used to fit the model")
+
     metadata: ModelMetaData = pydantic.Field(default={},
                                              description="Model metadata")
 
@@ -116,6 +119,8 @@ class MLModel(pydantic.BaseModel):
     def fit(self, data, logger=None, **kwds):
         data_fit = self.prepare_fit_data(data, logger=logger, **kwds)
         self.fit_specs(data_fit, logger=logger, **kwds)
+
+        self.nb_data_fit = len(data_fit)
 
         return data_fit
 

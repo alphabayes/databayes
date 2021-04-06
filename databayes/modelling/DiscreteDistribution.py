@@ -264,6 +264,17 @@ class DiscreteDistribution(FrozenClass, pd.DataFrame):
             raise ValueError(
                 f"The variance is not defined for domain of type {self.variable.domain_type}")
 
+    def Q(self, q=0.5):
+        """Quantile computations"""
+        ipdb.set_trace()
+        if self.variable.domain_type == "numeric":
+            return (self @ [i ** 2 for i in self.variable.domain]) - self.E.pow(2)
+        elif self.variable.domain_type == "interval":
+            return (self @ [i.mid ** 2 for i in self.variable.domain]) - self.E.pow(2)
+        else:
+            raise ValueError(
+                f"The variance is not defined for domain of type {self.variable.domain_type}")
+
     # Renvoie l ecart type de l'ensemble des distributions
     def sigma(self):
         return self.sigma2.pow(0.5)
