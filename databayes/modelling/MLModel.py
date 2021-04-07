@@ -16,6 +16,35 @@ if 'scipy' in installed_pkg:
     import scipy.stats  # noqa: F401
 
 
+def get_subclasses(cls, recursive=True):
+    """ Enumerates all subclasses of a given class.
+
+    # Arguments
+    cls: class. The class to enumerate subclasses for.
+    recursive: bool (default: True). If True, recursively finds all sub-classes.
+
+    # Return value
+    A list of subclasses of `cls`.
+    """
+    sub = cls.__subclasses__()
+    if recursive:
+        for cls in sub:
+            sub.extend(get_subclasses(cls, recursive=True))
+    return sub
+
+
+def create_mlmodel(**specs):
+
+    MLModel_sub_dict = {cls.__name__: cls for cls in get_subclasses(MLModel)}
+
+    model_classname = specs.pop("class")
+    model_cls = MLModel_sub_dict.get(model_classname)
+
+    model = model_cls(**specs)
+
+    return model
+
+
 class ModelMetaData(pydantic.BaseModel):
     """Model Meta Info."""
     predict_index: str = pydantic.Field(

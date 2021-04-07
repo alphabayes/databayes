@@ -802,35 +802,48 @@ class BayesianNetworkModel(MLModel):
         self.model.fit(data, **self.fit_parameters.dict(),
                        logger=logger, **kwds)
 
-    def change_var_features(self, removed_variables, inplace=False):
-        """
-        Delete links and variables
-        Returns the BayesianNetworkModel
-        """
+    # def change_var_features(self, removed_variables, inplace=False):
+    #     """
+    #     Delete links and variables
+    #     Returns the BayesianNetworkModel
+    #     """
 
-        new_variables = dict(self.model.variables)
-        new_parents = dict(self.model.parents)
-        for var_name in removed_variables:
-            new_variables.pop(var_name)
-            new_parents.pop(var_name)
+    #     new_variables = dict(self.model.variables)
+    #     new_parents = dict(self.model.parents)
+    #     for var_name in removed_variables:
+    #         new_variables.pop(var_name)
+    #         new_parents.pop(var_name)
 
-        for var_name_child, parent_list in self.model.parents.items():
-            for var_name in removed_variables:
-                if var_name in parent_list:
-                    new_parents[var_name_child].remove(var_name)
+    #     for var_name_child, parent_list in self.model.parents.items():
+    #         for var_name in removed_variables:
+    #             if var_name in parent_list:
+    #                 new_parents[var_name_child].remove(var_name)
 
-        model_specs = {'variables': new_variables,
-                       'parents': new_parents,
-                       'name': self.model.name,
-                       'backend': self.model.backend}
-        # We must reset the cct, because the model structure changed
+    #     model_specs = {'variables': new_variables,
+    #                    'parents': new_parents,
+    #                    'name': self.model.name,
+    #                    'backend': self.model.backend}
+    #     # We must reset the cct, because the model structure changed
 
-        if inplace:
-            self.model = BayesianNetwork(**model_specs)
-            self.new_features(removed_variables, inplace=True)
-            return self
-        else:
-            new_model = copy.deepcopy(self)
-            new_model.model = BayesianNetwork(**model_specs)
-            new_model.var_features = self.new_features(removed_variables)
-            return new_model
+    #     if inplace:
+    #         self.model = BayesianNetwork(**model_specs)
+    #         self.new_features(removed_variables, inplace=True)
+    #         return self
+    #     else:
+    #         new_model = copy.deepcopy(self)
+    #         new_model.model = BayesianNetwork(**model_specs)
+    #         new_model.var_features = self.new_features(removed_variables)
+    #         return new_model
+
+
+class PureBayesianModel(BayesianNetworkModel):
+
+    def __init__(self, **data: typing.Any):
+
+        # Build pure bayesian structure
+        # Features -> Targets
+        data.setdefault("model", {})
+        data["model"]["parents"] = \
+            {target: data["var_features"] for target in data["var_targets"]}
+
+        super().__init__(**data)
