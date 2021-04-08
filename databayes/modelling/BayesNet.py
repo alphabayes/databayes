@@ -719,6 +719,7 @@ class BayesianNetwork(pydantic.BaseModel):
                                            desc="Inference",
                                            unit=" predictions",
                                            disable=not(progress_mode)):
+
             # Set the evidence
             inf_bn.setEvidence(data_cur.to_dict())
             # Run inference
