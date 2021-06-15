@@ -27,7 +27,7 @@ import os
 #     # No CI
 #     version = None
 
-version = "0.0.9rc1"
+version = "0.0.10rc1"
 
 setup(name='databayes',
       version=version,
