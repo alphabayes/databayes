@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from .DiscreteVariable import DiscreteVariable
-from ..utils import ddomain_equals
+from ..utils import ddomain_equals, pdInterval_series_from_string
 
 # For graph plot
 
@@ -88,13 +88,17 @@ class DiscreteDistribution(FrozenClass, pd.DataFrame):
 
         return dd
 
-    # Service vérifiant si la somme des distributions vaut 1, leve une exception si c'est le cas
-
     def checksum(self, atol=1e-9):
         return (1 - self.sum(axis=1)).abs() > atol
 
+    def normalize(self):
+        self.values[:] = self.values/self.values.sum(axis=1, keepdims=True)
     # Service pour calculer la probabilité que les variables suivant les distributions soit égales à une valeur donnée
     # Soit le calcul de  p(X=value)
+
+    def cdf(self):
+        return self.cumsum(axis=1)
+
     def get_prob_from_value(self, value, interval_zero_prob=True):
 
         # Verification que toutes les distributions somment à 1
@@ -264,18 +268,58 @@ class DiscreteDistribution(FrozenClass, pd.DataFrame):
             raise ValueError(
                 f"The variance is not defined for domain of type {self.variable.domain_type}")
 
-    def Q(self, q=0.5):
+    # TODO
+    def quantile(self, q=0.5):
         """Quantile computations"""
-        ipdb.set_trace()
-        if self.variable.domain_type == "numeric":
-            return (self @ [i ** 2 for i in self.variable.domain]) - self.E.pow(2)
-        elif self.variable.domain_type == "interval":
-            return (self @ [i.mid ** 2 for i in self.variable.domain]) - self.E.pow(2)
-        else:
-            raise ValueError(
-                f"The variance is not defined for domain of type {self.variable.domain_type}")
 
-    # Renvoie l ecart type de l'ensemble des distributions
+        cdf = self.cdf().values
+        if q <= 0:
+            quant_idx = [0]*len(self)
+        # elif q >= 1:
+        #     quant_idx = [dom_size]*len(self)
+        else:
+            quant_idx = \
+                (cdf <= q).cumsum(axis=1).max(axis=1)
+
+        if self.variable.domain_type == "interval":
+
+            if q >= 1:
+                quant = [self.columns[-1].right]*len(self)
+            else:
+                quant = []
+                for pdf_idx in range(len(self)):
+
+                    dom_idx = quant_idx[pdf_idx]
+                    if dom_idx == 0:
+                        cdf_left = 0
+                    else:
+                        cdf_left = cdf[pdf_idx, dom_idx - 1]
+
+                    cdf_right = cdf[pdf_idx, dom_idx]
+
+                    alpha = (q - cdf_left)/(cdf_right - cdf_left)
+
+                    it_left = self.columns[dom_idx].left
+                    it_right = self.columns[dom_idx].right
+
+                    if (it_left == -np.inf) or (it_right == np.inf):
+                        quant_val = it_left
+                    elif (it_right == np.inf):
+                        quant_val = it_right
+                    else:
+                        quant_val = it_left + alpha*(it_right - it_left)
+
+                    # ipdb.set_trace()
+
+                    quant.append(quant_val)
+
+        else:
+
+            domains = self.columns.insert(0, np.nan)
+            quant = domains[quant_idx]
+
+        return pd.Series(quant, index=self.index, name=f"Q({q})")
+
     def sigma(self):
         return self.sigma2.pow(0.5)
 

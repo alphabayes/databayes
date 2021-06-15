@@ -6,7 +6,7 @@ import pkg_resources
 
 from .DiscreteDistribution import DiscreteDistribution
 from .DiscreteVariable import DiscreteVariable
-from ..utils import Discretizer
+from ..utils import Discretizer, get_subclasses
 
 installed_pkg = {pkg.key for pkg in pkg_resources.working_set}
 if 'ipdb' in installed_pkg:
@@ -16,29 +16,15 @@ if 'scipy' in installed_pkg:
     import scipy.stats  # noqa: F401
 
 
-def get_subclasses(cls, recursive=True):
-    """ Enumerates all subclasses of a given class.
-
-    # Arguments
-    cls: class. The class to enumerate subclasses for.
-    recursive: bool (default: True). If True, recursively finds all sub-classes.
-
-    # Return value
-    A list of subclasses of `cls`.
-    """
-    sub = cls.__subclasses__()
-    if recursive:
-        for cls in sub:
-            sub.extend(get_subclasses(cls, recursive=True))
-    return sub
-
-
 def create_mlmodel(**specs):
 
     MLModel_sub_dict = {cls.__name__: cls for cls in get_subclasses(MLModel)}
 
-    model_classname = specs.pop("class")
+    model_classname = specs.pop("cls")
     model_cls = MLModel_sub_dict.get(model_classname)
+
+    if model_cls is None:
+        raise ValueError(f"{model_classname} is not a subclass of MLModel")
 
     model = model_cls(**specs)
 
@@ -130,12 +116,12 @@ class MLModel(pydantic.BaseModel):
         if callable(init_from_dataframe):
             init_from_dataframe(df)
 
-    def prepare_fit_data(self, data, logger=None, **kwds):
+    def prepare_fit_data(self, data, logger=None):
         """ Data preparation method. This method
         aims to be overloaded if needed"""
 
         if not(self.var_discretizer is None):
-            data = self.var_discretizer.discretize(data, logger=logger, **kwds)
+            data = self.var_discretizer.discretize(data, logger=logger)
 
         return data
 
@@ -146,10 +132,18 @@ class MLModel(pydantic.BaseModel):
                        logger=logger, **kwds)
 
     def fit(self, data, logger=None, **kwds):
-        data_fit = self.prepare_fit_data(data, logger=logger, **kwds)
+        data_fit = self.prepare_fit_data(data, logger=logger)
+
         self.fit_specs(data_fit, logger=logger, **kwds)
 
-        self.nb_data_fit = len(data_fit)
+        # TODO: USE ML TECHNIQUE TO COUNT DATA IF MODEL HAS COUNTING METHOD
+        # FOR EX: IN BN, WE CAN THINK TO A METHOD THAT COUNT DATA BASED
+        # ON DECAY (IN FACT JUST COUNTS THE CPT COUNTS :))
+        update_fit = getattr(self.fit_parameters, "update_fit", False)
+        if update_fit:
+            self.nb_data_fit += len(data_fit)
+        else:
+            self.nb_data_fit = len(data_fit)
 
         return data_fit
 
@@ -159,11 +153,11 @@ class MLModel(pydantic.BaseModel):
         return self.model.predict(data[self.var_features], self.var_targets,
                                   logger=logger, **kwds)
 
-    def prepare_predict_data(self, data, logger=None, **kwds):
+    def prepare_predict_data(self, data, logger=None):
         """ Data preparation method. This method
         aims to be overloaded if needed"""
         if not(self.var_discretizer is None):
-            data = self.var_discretizer.discretize(data, logger=logger, **kwds)
+            data = self.var_discretizer.discretize(data, logger=logger)
 
         return data
 
@@ -180,7 +174,7 @@ class MLModel(pydantic.BaseModel):
             self.predict_parameters.predict_postprocess.update(
                 **predict_postprocess)
 
-        data_predict = self.prepare_predict_data(data, logger=logger, **kwds)
+        data_predict = self.prepare_predict_data(data, logger=logger)
 
         predictions = self.predict_specs(data_predict, logger=logger, **kwds)
 

@@ -307,16 +307,33 @@ class BayesianNetwork(pydantic.BaseModel):
             pd.MultiIndex.from_product([self.variables[v].domain for v in var_domain],
                                        names=var_domain)
 
-        # Init CCT as a DataFrame
-        cct_df = pd.Series(0, index=var_domain_labels, name="count")
+        init_cct = False
+        if not(var_name in self.cct):
+            init_cct = True
+        else:
+            var_domain_labels_cur = self.get_cct(var_name, flatten=True).index
 
-        # Store CCT in cct attribute
-        self.cct[var_name] = \
-            cct_df.to_frame()\
-            .reset_index()\
-            .to_dict("records")
+            if len(var_domain) == 1:
+                init_cct = set(var_domain_labels.levels[0]) != \
+                    set(var_domain_labels_cur)
+            else:
+                init_cct = set(var_domain_labels) != \
+                    set(var_domain_labels_cur)
 
-        # Update backend parameters after learning process
+        # Erase CCT only if CPT structure has changed
+        if init_cct:
+            # Init CCT as a DataFrame
+            cct_df = pd.Series(0, index=var_domain_labels, name="count")
+
+            # Store CCT in cct attribute
+            self.cct[var_name] = cct_df.to_frame()\
+                .reset_index()\
+                .to_dict("records")
+
+        # Update backend parameters
+        # NOTE: This is mandatory even if structure has not changed
+        # All this BN backend can be improved a LOT !
+        # => Implement PANDAS BN !!!
         self.update_cpt_params(var_name)
 
     def init_from_dataframe(self, df, add_data_var=False):
@@ -366,9 +383,8 @@ class BayesianNetwork(pydantic.BaseModel):
 
             if data_var_s.dtype.name != "category":
                 # Try to transform it
-                cat_type = \
-                    pd.api.types.CategoricalDtype(categories=self.variables[var_name].domain,
-                                                  ordered=self.variables[var_name].domain_type != "label")
+                cat_type = pd.api.types.CategoricalDtype(categories=self.variables[var_name].domain,
+                                                         ordered=self.variables[var_name].domain_type != "label")
 
                 data_var_s = data_var_s.astype(str).astype(cat_type)
 
@@ -401,8 +417,8 @@ class BayesianNetwork(pydantic.BaseModel):
         for var_name in self.variables.keys():
             var_domain = [var_name] + self.parents.get(var_name, [])
 
-            var_not_in_data = \
-                [var for var in var_domain if not(var in data.columns)]
+            var_not_in_data = [
+                var for var in var_domain if not(var in data.columns)]
             if len(var_not_in_data) > 0:
                 warnings.warn(f"Skip variable {var_name} fitting: domain [{var_not_in_data}] not in data",
                               RuntimeWarning)
@@ -451,7 +467,7 @@ class BayesianNetwork(pydantic.BaseModel):
         index_name = data.index.name if not(data.index.name is None) \
             else "index"
         cct_cur_df = data[var_dim].reset_index()\
-            .groupby(var_dim)[index_name]\
+            .groupby(by=var_dim, dropna=False)[index_name]\
             .count()\
             .rename("count")
 
@@ -459,17 +475,15 @@ class BayesianNetwork(pydantic.BaseModel):
             cct_df = cct_cur_df + \
                 (1 - update_decay)*self.get_cct(var_name, flatten=True)
 
-            self.cct[var_name] = \
-                cct_df.to_frame()\
-                      .reset_index()\
-                      .to_dict("records")
+            self.cct[var_name] = cct_df.to_frame()\
+                .reset_index()\
+                .to_dict("records")
 
         else:
             # Erase cpt counts with new counts
-            self.cct[var_name] = \
-                cct_cur_df.to_frame()\
-                          .reset_index()\
-                          .to_dict("records")
+            self.cct[var_name] = cct_cur_df.to_frame()\
+                .reset_index()\
+                .to_dict("records")
 
         # Update backend parameters after learning process
         self.update_cpt_params(var_name)
@@ -485,16 +499,17 @@ class BayesianNetwork(pydantic.BaseModel):
         # Set categorical labels for counts columns with respect to
         # variable labels
         for var in cct_df[var_domain].columns:
-            cat_type = \
-                pd.api.types.CategoricalDtype(categories=self.variables[var].domain,
-                                              ordered=self.variables[var].domain_type != "label")
+            cat_type = pd.api.types.CategoricalDtype(
+                categories=self.variables[var].domain,
+                ordered=self.variables[var].domain_type != "label")
 
             cct_df[var] = cct_df[var].astype(cat_type)
 
         cct_df = pd.pivot_table(data=cct_df,
                                 index=var_name,
                                 columns=parents_var,
-                                values="count")
+                                dropna=False,
+                                values="count").fillna(0)
 
         if len(parents_var) == 0:
             # To have unified output change unique columns name as "" since
@@ -505,7 +520,11 @@ class BayesianNetwork(pydantic.BaseModel):
             # When no parent, cpt_df.index is a CategoricalIndex
             # which cannot be reorder_levels
             if len(parents_var) > 0:
-                cct_df = cct_df.stack(parents_var).reorder_levels(var_domain)
+                # PROBLEM: STACK CANCELS CATEGORICAL MULTINDEX INDEX SPECS IN pandas<=1.2.4
+                # Use transpose+stack one dim instead
+                #                cct_df = cct_df.stack(parents_var).reorder_levels(var_domain)
+                cct_df = cct_df.transpose().stack(var_name).reorder_levels(var_domain)
+
             else:
                 cct_df = cct_df[""]
 
@@ -625,8 +644,8 @@ class BayesianNetwork(pydantic.BaseModel):
     # bn.cpt(var_name)[:] = pd.np.nan_to_num((joint_counts/cond_counts).transpose().reshape(*domains)
 
     def update_cpt_params(self, var_name):
-        update_cpt_params_method = \
-            getattr(self, self.backend + "_update_cpt_params", None)
+        update_cpt_params_method = getattr(
+            self, self.backend + "_update_cpt_params", None)
         if callable(update_cpt_params_method):
             return update_cpt_params_method(var_name)
         else:
@@ -646,8 +665,11 @@ class BayesianNetwork(pydantic.BaseModel):
         cpt_domain_size = [len(self.variables[var].domain)
                            for var in var_domain]
 
-        cpt_np = cpt.to_numpy()\
-                    .reshape(cpt_domain_size)
+        try:
+            cpt_np = cpt.to_numpy()\
+                        .reshape(cpt_domain_size)
+        except Exception as e:
+            ipdb.set_trace()
 
         # Then transpose axis if needed
         cpt_nb_dim = len(var_domain)
@@ -682,8 +704,7 @@ class BayesianNetwork(pydantic.BaseModel):
         else:
             raise ValueError(f"Input data must be a Pandas DataFrame")
 
-        predict_method = \
-            getattr(self, self.backend + "_predict", None)
+        predict_method = getattr(self, self.backend + "_predict", None)
         if callable(predict_method):
             return predict_method(data=data_pred,
                                   var_targets=var_targets,
@@ -709,19 +730,22 @@ class BayesianNetwork(pydantic.BaseModel):
         # target_dom = self.variables[var_target].domain
         nb_data = len(data)
 
-        # TODO: Use DiscreteDistribution
-        pred_res = \
-            {tv: {"scores": DiscreteDistribution(index=data.index,
-                                                 **self.variables[tv].dict()),
-                  "comp_ok": pd.Series(True, index=data.index)}
-             for tv in var_targets}
+        pred_res = {tv: {"scores": DiscreteDistribution(index=data.index,
+                                                        **self.variables[tv].dict()),
+                         "comp_ok": pd.Series(True, index=data.index)}
+                    for tv in var_targets}
         for data_id, data_cur in tqdm.tqdm(data.iterrows(),
                                            desc="Inference",
                                            unit=" predictions",
                                            disable=not(progress_mode)):
 
             # Set the evidence
-            inf_bn.setEvidence(data_cur.to_dict())
+            try:
+                inf_bn.setEvidence(data_cur.to_dict())
+            except Exception as e:
+                ipdb.set_trace()
+                pred_res[tv]["comp_ok"].loc[data_id] = False
+
             # Run inference
             inf_bn.makeInference()
             # Compute posterior probability of target variables
@@ -739,8 +763,7 @@ class BayesianNetwork(pydantic.BaseModel):
         for tv in var_targets:
             if map_k > 0:
                 # ipdb.set_trace()
-                pred_res[tv]["map"] = \
-                    pred_res[tv]["scores"].get_map(map_k)
+                pred_res[tv]["map"] = pred_res[tv]["scores"].get_map(map_k)
 
         return pred_res
 
@@ -790,7 +813,7 @@ class BayesianNetworkModel(MLModel):
     fit_parameters: BayesianNetworkFitParameters = pydantic.Field(BayesianNetworkFitParameters(),
                                                                   description="Bayesian network object")
 
-    @pydantic.validator('type')
+    @ pydantic.validator('type')
     def check_type(cls, val):
         if val != "BayesianNetworkModel":
             raise ValueError("Not BayesianNetworkModel object")
@@ -799,7 +822,9 @@ class BayesianNetworkModel(MLModel):
     def fit_specs(self, data, logger=None, **kwds):
 
         var = self.var_targets + self.var_features + self.var_extra
+
         self.model.init_from_dataframe(data[var], add_data_var=True)
+
         self.model.fit(data, **self.fit_parameters.dict(),
                        logger=logger, **kwds)
 
@@ -844,7 +869,20 @@ class PureBayesianModel(BayesianNetworkModel):
         # Build pure bayesian structure
         # Features -> Targets
         data.setdefault("model", {})
-        data["model"]["parents"] = \
-            {target: data["var_features"] for target in data["var_targets"]}
+        data["model"]["parents"] = {target: data["var_features"]
+                                    for target in data["var_targets"]}
+
+        super().__init__(**data)
+
+
+class NaiveBayesianModel(BayesianNetworkModel):
+
+    def __init__(self, **data: typing.Any):
+
+        # Build pure bayesian structure
+        # Features -> Targets
+        data.setdefault("model", {})
+        data["model"]["parents"] = {feature: data["var_targets"]
+                                    for feature in data["var_features"]}
 
         super().__init__(**data)

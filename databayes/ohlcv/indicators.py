@@ -4,6 +4,7 @@ import os
 import yaml
 import pydantic
 import typing
+import math
 from databayes.utils import etl
 from datetime import date, datetime, timedelta
 import logging
@@ -28,20 +29,6 @@ class OHLCVIndicatorBase(pydantic.BaseModel):
 
     values: pd.Series = pydantic.Field(
         None, description="Values of the indicator")
-
-    # num_suffix: str = pydantic.Field(
-    #     "__num", description="Suffix related to the numeric version of the indicator if exists")
-    # factor_suffix: str = pydantic.Field(
-    #     "__factor", description="Suffix related to the categorical version of the indicator if exists")
-
-    # # TODO: Use DataBayes discretization scheme or REMOVE
-    # discretization: dict = pydantic.Field(
-    #     None, description="Discretization specifications")
-
-    # indic_num: pd.Series = pydantic.Field(
-    #     None, description="Numeric values of the indicator")
-    # indic_factor: pd.Series = pydantic.Field(
-    #     None, description="Categorical values of the indicator")
 
     open_var: str = pydantic.Field(
         "open", description="Open data variable name")
@@ -93,34 +80,8 @@ class OHLCVIndicatorBase(pydantic.BaseModel):
 
     def compute(self, data, logging=logging, **kwrds):
         logging.debug(f">> Compute {self.name}")
-        raise NotImplemented(f"Indicator {self.name} has no compute method")
-        # self.compute_numeric(data, logging=logging)
-
-        # if not(self.indic_num is None):
-        #     self.indic_num.name += self.num_suffix
-
-        # self.compute_factor(data, logging=logging)
-
-        # if not(self.indic_factor is None):
-        #     self.indic_factor.name += self.factor_suffix
-
-        # return self.indic_num, self.indic_factor
-
-    # def compute_numeric(self, data, logging=logging, **kwrds):
-    #     logging.debug(f">>> Indicator {self.name} has no numeric version")
-
-    #     return self.indic_num
-
-    # def compute_factor(self, data, logging=logging, **kwrds):
-
-    #     if not(self.discretization is None) and not(self.indic_num is None):
-    #         self.indic_factor = pd.cut(self.indic_num, **self.discretization)
-    #         self.indic_factor.name = \
-    #             self.indic_factor.name.replace(self.num_suffix, "")
-    #     else:
-    #         logging.debug(f">>> Indicator {self.name} has no factor version")
-
-    #     return self.indic_factor
+        raise NotImplementedError(
+            f"Indicator {self.name} has no compute method")
 
 
 class RSIIndicator(OHLCVIndicatorBase):
@@ -142,10 +103,13 @@ class RSIIndicator(OHLCVIndicatorBase):
         return values
 
     def compute(self,
-                data_ohlcv,
+                data_ohlcv_df,
                 **kwrds):
 
-        close_delta = data_ohlcv[self.close_var].diff()
+        data_open, data_high, data_low, data_close, data_volume = \
+            self.split_ohlcv(data_ohlcv_df)
+
+        close_delta = data_close.diff()
 
         delta_up = close_delta.copy(deep=True)
         delta_up[delta_up < 0] = 0
@@ -158,23 +122,28 @@ class RSIIndicator(OHLCVIndicatorBase):
         rs = roll_up.copy(deep=True)
         idx_rdp = roll_down > 0
         rs.loc[idx_rdp] = rs.loc[idx_rdp].div(roll_down.loc[idx_rdp], axis=0)
-        self.indic_num = 100.0 - (100.0/(1.0 + rs))
 
-        self.indic_num.name = self.name
+        self.values = 100.0 - (100.0/(1.0 + rs))
+        self.values.name = self.name
+
+        return self.values
 
 
-class ShadowLowBodyRatioIndicator(OHLCVIndicatorBase):
-    """ Compute low shadow / body ratio. """
+class MAReturnsIndicator(OHLCVIndicatorBase):
+    """ Compute (low shadow - high shadow)/body ratio. """
+
+    window_size: int = pydantic.Field(
+        0, description="Time unit lag to compute the indicator")
 
     @pydantic.validator('description', always=True)
     def set_default_description(cls, description):
-        return "Shadow low body ratio"
+        return "Moving Average Returns"
 
     @pydantic.root_validator(pre=True)
     def set_default_name_label(cls, values):
         values["name_label"] = values.get("name_label")\
             if not(values.get("name_label", None) is None)\
-            else "Shadow low body ratio"
+            else f"MAR{values.get('window_size', '')}"
 
         return values
 
@@ -185,32 +154,63 @@ class ShadowLowBodyRatioIndicator(OHLCVIndicatorBase):
         data_open, data_high, data_low, data_close, data_volume = \
             self.split_ohlcv(data_ohlcv_df)
 
-        body_range = data_close - data_open
+        returns = \
+            1 - data_close/data_open
 
-        shadow_low_base = data_open*(body_range > 0) + \
-            data_close*(body_range <= 0)
+        self.values = returns.rolling(self.window_size).mean()
+        self.values.name = self.name
 
-        shadow_low = shadow_low_base - data_low
+        return self.values
 
-        self.values = shadow_low/body_range.abs()
+
+class ReturnsIndicator(OHLCVIndicatorBase):
+    """ Compute (low shadow - high shadow)/body ratio. """
+
+    lag: int = pydantic.Field(
+        0, description="Time unit lag to compute the indicator")
+
+    @pydantic.validator('description', always=True)
+    def set_default_description(cls, description):
+        return "Returns"
+
+    @pydantic.root_validator(pre=True)
+    def set_default_name_label(cls, values):
+        values["name_label"] = values.get("name_label")\
+            if not(values.get("name_label", None) is None)\
+            else "Returns"
+
+        return values
+
+    def compute(self,
+                data_ohlcv_df,
+                **kwrds):
+
+        data_open, data_high, data_low, data_close, data_volume = \
+            self.split_ohlcv(data_ohlcv_df)
+
+        self.values = \
+            1 - data_close.shift(self.lag)/data_open.shift(self.lag)
 
         self.values.name = self.name
 
         return self.values
 
 
-class ShadowLowRatioIndicator(OHLCVIndicatorBase):
-    """ Compute low shadow / body + high shadow ratio. """
+class GeneralizedHammerIndicator(OHLCVIndicatorBase):
+    """ Compute (low shadow - high shadow)/body ratio. """
+
+    lag: int = pydantic.Field(
+        0, description="Time unit lag to compute the indicator")
 
     @pydantic.validator('description', always=True)
     def set_default_description(cls, description):
-        return "Shadow low ratio"
+        return "Generalized hammer"
 
     @pydantic.root_validator(pre=True)
     def set_default_name_label(cls, values):
         values["name_label"] = values.get("name_label")\
             if not(values.get("name_label", None) is None)\
-            else "Shadow low ratio"
+            else "Generalized hammer"
 
         return values
 
@@ -221,15 +221,28 @@ class ShadowLowRatioIndicator(OHLCVIndicatorBase):
         data_open, data_high, data_low, data_close, data_volume = \
             self.split_ohlcv(data_ohlcv_df)
 
+        data_close = data_close.shift(self.lag)
+        data_open = data_open.shift(self.lag)
+        data_high = data_high.shift(self.lag)
+        data_low = data_low.shift(self.lag)
+
         body_range = data_close - data_open
 
         shadow_low_base = data_open*(body_range > 0) + \
             data_close*(body_range <= 0)
 
-        body_high_range = data_high - shadow_low_base
-        shadow_low = shadow_low_base - data_low
+        shadow_high_base = data_open*(body_range < 0) + \
+            data_close*(body_range >= 0)
 
-        self.values = shadow_low/body_high_range
+        shadow_low = shadow_low_base - data_low
+        shadow_high = data_high - shadow_high_base
+
+        shadow_delta = shadow_low - shadow_high
+
+        self.values = shadow_delta/body_range.abs()
+        # To avoid numerical problem :
+        idx_body_range_0 = body_range.abs() == 0
+        self.values.loc[idx_body_range_0] = 0
 
         self.values.name = self.name
 
@@ -326,112 +339,130 @@ class MovingVolumeQuantileIndicator(OHLCVIndicatorBase):
         return self.values
 
 
-class HammerIndicator(OHLCVIndicatorBase):
-    """ Hammer signal as describe in https://www.whselfinvest.fr/fr-fr/plateforme-de-trading/strategies-trading-gratuites/systeme/22-hammer """
+class RangeIndexIndicator(OHLCVIndicatorBase):
+    """ Compute normalized close position from range. """
 
-    body_min_threshold: float = pydantic.Field(
-        0, description="Body lower bound to consider hammer calculation")
-    past_direction_order: int = pydantic.Field(
-        2, description="Number of time units at same direction in the past just before the hammer")
+    window_size: int = pydantic.Field(
+        120, description="Time windows to compute range")
 
     @pydantic.validator('description', always=True)
     def set_default_description(cls, description):
-        return "Relative generalized hammer indicators"
+        return "RangeIndex"
 
     @pydantic.root_validator(pre=True)
     def set_default_name_label(cls, values):
         values["name_label"] = values.get("name_label")\
             if not(values.get("name_label", None) is None)\
-            else "Generalized hammer"
+            else "RangeIndex"
 
         return values
+
+    def update(self, data_ohlcv_df, **kwrds):
+        return self.compute(data_ohlcv_df, **kwrds)
 
     def compute(self,
                 data_ohlcv_df,
                 **kwrds):
-        # DEBUG
-        # datetime_start = datetime(2020, 10, 19, 0, 0)
-        # datetime_end = datetime(2020, 10, 19, 12, 0)
-        # data_ohlcv_df = data_ohlcv_df.loc[datetime_start:datetime_end]
 
-        body_range = \
-            data_ohlcv_df[self.close_var] - data_ohlcv_df[self.open_var]
+        data_open, data_high, data_low, data_close, data_volume = \
+            self.split_ohlcv(data_ohlcv_df)
 
-        body_past_range_list = \
-            [body_range.shift(i)
-             for i in range(self.past_direction_order + 1, 1, -1)]
+        # TO BE CONTINUED
 
-        body_past_range_df = pd.concat(body_past_range_list, axis=1)
+        close_min = data_close.rolling(self.window_size).min()
+        close_max = data_close.rolling(self.window_size).max()
 
-        body_past_indic = \
-            -(body_past_range_df < 0).all(axis=1).astype(int) + \
-            (body_past_range_df >= 0).all(axis=1).astype(int)
+        close_range = close_max - close_min
 
-        hammer_df = self.compute_hammer(data_ohlcv_df)
-
-        body_direction_cur = -(body_range < 0).astype(int) + \
-            (body_range >= 0).astype(int)
-
-        hammer_indic = -(hammer_df.hammer.shift(1) < 0).astype(int) + \
-            (hammer_df.hammer.shift(1) >= 0).astype(int)
-
-        # Indicate if hammer has the opposite direction with the past
-        hammer_trend_indic = \
-            ((body_past_indic*hammer_indic) < 0).astype(int)
-        # Indicate if we have a change of trends
-        trend_change_indic = \
-            ((body_past_indic*body_direction_cur) < 0).astype(int)
-
-        self.values = \
-            hammer_df.hammer.shift(1)*hammer_trend_indic*trend_change_indic
-        # self.indic_num = \
-        #     hammer_df.hammer.shift(1)*hammer_trend_indic
-
-        # ipdb.set_trace()
-
-        # Cleaning
-        # Remove NaN
-        self.values = \
-            self.values.replace([np.inf, -np.inf], np.nan)\
-            .fillna(0)
+        self.values = (data_close - close_min).div(close_range)
 
         self.values.name = self.name
 
         return self.values
 
-    def compute_hammer(self, data_ohlcv_df):
 
-        body_range = \
-            data_ohlcv_df[self.close_var] - data_ohlcv_df[self.open_var]
+# TODO: TO BE CONTINUED
+class SupportIndicator(OHLCVIndicatorBase):
+    """ Compute (low shadow - high shadow)/body ratio. """
 
-        data_open = data_ohlcv_df[self.open_var]
-        data_close = data_ohlcv_df[self.close_var]
-        data_low = data_ohlcv_df[self.low_var]
-        data_high = data_ohlcv_df[self.high_var]
+    window_size: int = pydantic.Field(
+        120, description="Time windows to search supports")
+
+    bin_width: int = pydantic.Field(
+        100, description="Time windows to search supports")
+
+    @pydantic.validator('description', always=True)
+    def set_default_description(cls, description):
+        return "Support"
+
+    @pydantic.root_validator(pre=True)
+    def set_default_name_label(cls, values):
+        values["name_label"] = values.get("name_label")\
+            if not(values.get("name_label", None) is None)\
+            else "Support"
+
+        return values
+
+    def compute_support_indic(self, data_close):
+
+        # idx_support = \
+        #     (data_close.shift(2) > data_close.shift(1)) & \
+        #     (data_close.shift(1) > data_close) & \
+        #     (data_close < data_close.shift(-1)) & \
+        #     (data_close.shift(-1) < data_close.shift(-2))
+
+        idx_support = \
+            (data_close.shift(1) > data_close) & \
+            (data_close < data_close.shift(-1))
+
+        close_min = math.floor(data_close.min()/self.bin_width)*self.bin_width
+        close_max = math.ceil(data_close.max()/self.bin_width)*self.bin_width
+
+        bins = \
+            np.arange(close_min - self.bin_width/2,
+                      close_max + self.bin_width/2,
+                      self.bin_width)
+
+        data_close_disc = pd.cut(data_close, bins)
+
+        data_close_disc.loc[idx_support].value_counts()
+
+        return (data_close_disc == data_close_disc.iloc[-1]).sum()
+
+    def compute(self,
+                data_ohlcv_df,
+                **kwrds):
+
+        data_open, data_high, data_low, data_close, data_volume = \
+            self.split_ohlcv(data_ohlcv_df)
+
+        # TO BE CONTINUED
+
+        ddd = data_close.rolling(self.window_size).apply(
+            self.compute_support_indic)
+
+        ipdb.set_trace()
+
+        return idx_support
+
         body_range = data_close - data_open
 
         shadow_low_base = data_open*(body_range > 0) + \
             data_close*(body_range <= 0)
+
+        shadow_high_base = data_open*(body_range < 0) + \
+            data_close*(body_range >= 0)
+
         shadow_low = shadow_low_base - data_low
+        shadow_high = data_high - shadow_high_base
 
-        shadow_up_base = data_close*(body_range > 0) + \
-            data_open*(body_range <= 0)
-        shadow_up = data_high - shadow_up_base
+        shadow_delta = shadow_low - shadow_high
 
-        # Cancel effect of tiny body
-        idx_body_threshold = body_range.abs() < self.body_min_threshold
-        body_range.loc[idx_body_threshold] = np.nan
+        self.values = shadow_delta/body_range.abs()
+        # To avoid numerical problem :
+        idx_body_range_0 = body_range.abs() == 0
+        self.values.loc[idx_body_range_0] = 0
 
-        hammer = (shadow_low - shadow_up)/body_range.abs()
-        # Cleaning
-        # Remove NaN
-        hammer = \
-            hammer.replace([np.inf, -np.inf], np.nan)\
-                  .fillna(0)
+        self.values.name = self.name
 
-        hammer_all_df = pd.concat([hammer.rename("hammer"),
-                                   shadow_low.rename("shadow_low"),
-                                   shadow_up.rename("shadow_up"),
-                                   body_range.rename("body")], axis=1)
-
-        return hammer_all_df
+        return self.values

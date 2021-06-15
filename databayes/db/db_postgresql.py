@@ -13,11 +13,12 @@ if 'ipdb' in installed_pkg:
     import ipdb  # noqa: F401
 
 
+# TODO !!!!
 class DBPostgreSQL(DBBase):
 
     def connect(self, logging=logging, **params):
         """ Connect to the PostgreSQL database server """
-        ipdb.set_trace()
+
         try:
             # connect to the PostgreSQL server
             logging.info(f'Connecting to the PostgreSQL database {self.name}')
