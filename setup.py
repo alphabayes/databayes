@@ -27,11 +27,11 @@ import os
 #     # No CI
 #     version = None
 
-version = "0.0.10rc1"
+version = "0.0.11"
 
 setup(name='databayes',
       version=version,
-      url='https://gitlab.com/alphabayes/databayes',
+      url='https://github.com/alphabayes/databayes',
       author='Roland Donat',
       author_email='roland.donat@gmail.com, roland.donat@alphabayes.fr',
       maintainer='Roland Donat',
@@ -63,17 +63,14 @@ setup(name='databayes',
       python_requires='>=3.6',
       install_requires=[
           "typing-extensions",
-          "pandas==1.2.4",
+          "pandas",
           "PyYAML",
-          "pydantic==1.6.1",  # 1.6.1
+          "pydantic",
           "tqdm",
           "scikit-learn",
           "pyAgrum",
           "colored",
           "psycopg2",
-          "reliability==0.5.4",
-          "dash==1.16.0",
-          "dash-bootstrap-components==0.10.5",
           "intervals",
           "deepmerge",
       ],

@@ -4,6 +4,7 @@ import pydantic
 import pandas as pd
 import re
 import pkg_resources
+import os
 from intervals import FloatInterval
 
 installed_pkg = {pkg.key for pkg in pkg_resources.working_set}
@@ -207,3 +208,100 @@ def discretize(data_df, var_specs={},
                     ">> Object variable detected: discretization done")
 
     return data_ddf
+
+
+def split_csv_file(filename,
+                   event_col_name,
+                   separator,
+                   date_min=None,
+                   date_max=None,
+                   time_range=None,
+                   nb_parts=None):
+    """" This function split a csv file  according to two possible rules :  If  "time range" is given in  input, the
+    split will be done according to the specified time col  between the input date_min and date_max. If nb_parts is given
+    the split will be done  by cutting the col_event_name into equal parts
+
+    The csv ouputs are saved in a subfolder named : filename_split . If time_range is found, then it used for plit otherwise, nb of row should be
+    defined in input.
+        inputs:
+            - filename: name of the file to split
+            - time_range: Pandas frequency chosen for the chosen cut
+            - nb_parts: Nunber of parts of the output split
+            - date_min: lowest date of the data set to split
+            - date_max: Highest date of the data set to split
+            - event_col_name: Name of the reference column for splitting
+            - separator: separator used by the csv file
+        output:
+            Set of csv files stored in : filename_split/filename_split_part_x
+        Example:
+            generic_lib.general_tools.split_csv_file(filename='data_raw/SIGNALEMENTS/SIGNALEMENT.csv',
+                                                time_range='1Y',
+                                                date_min='01/01/2012',
+                                                date_max='01/01/2019',
+                                                event_col_name='SIG_DATE',
+                                                separator=";")
+
+            generic_lib.general_tools.split_csv_file(filename=path,
+                                                    nb_part=10,
+                                                    event_col_name='OT_ID',
+                                                    separator=";")"""
+
+    # Create outputt directory if it does not exist
+    output_dir_name = filename[:-4] + '_split'
+    exact_name = filename[filename.rfind('/') + 1:len(filename) - 4]
+
+    if not os.path.exists(output_dir_name):
+        os.makedirs(output_dir_name)
+
+    # Read the csv file
+    input_df = pd.read_csv(filename, sep=separator)
+
+    # Create the list of interval for the cut
+
+    if not (time_range is None):
+
+        # Read input dates
+
+        date_min = pd.Timestamp(date_min)
+        date_max = pd.Timestamp(date_max)
+        print('Chosen dates for the intervall to split : ', date_min, date_max)
+
+        # Datetype conversion
+        input_df[event_col_name] = pd.to_datetime(input_df[event_col_name])
+
+        #  Create time intervals for split
+
+        range_interval = list(pd.date_range(
+            start=date_min, end=date_max, freq=time_range))
+        intervals_list = [date_min] + range_interval + [date_max]
+
+        for i in range(0, len(intervals_list) - 1):
+            low_bound = intervals_list[i]
+            max_bound = intervals_list[i + 1]
+            mask = (input_df[event_col_name] > low_bound) & (
+                input_df[event_col_name] <= max_bound)
+
+            df_temp = input_df.loc[mask]
+
+            print('df number : ', i, 'between date ',
+                  low_bound, ' and date', max_bound)
+
+            filename_temp = output_dir_name + '/' + \
+                exact_name + '_split_part_' + str(i) + '.csv'
+            df_temp.to_csv(filename_temp, sep=separator, index=False)
+
+    if not (nb_parts is None):
+        #  Cuts the set of event_id
+
+        intervals_list = pd.cut(
+            list(input_df[event_col_name].unique()), bins=nb_parts).categories
+        print('liste des intervalles', intervals_list)
+
+        for i in range(0, len(intervals_list)):
+            interval = intervals_list[i]
+            mask = input_df[event_col_name].apply(lambda x: x in interval)
+            df_temp = input_df.loc[mask]
+            print('df number : ', i, 'sur lintervalle', interval)
+            filename_temp = output_dir_name + '/' + \
+                exact_name + '_split_part_' + str(i) + '.csv'
+            df_temp.to_csv(filename_temp, sep=separator, index=False)
