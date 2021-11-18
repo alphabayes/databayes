@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
 
-import os
-import yaml
 import pydantic
 import typing
 import math
-from databayes.utils import etl
-from datetime import date, datetime, timedelta
 import logging
 import pandas as pd
 import numpy as np
 import pkg_resources
-from deepmerge import conservative_merger
+
+#from deepmerge import conservative_merger
+
+PandasSeries = typing.TypeVar('pandas.core.frame.Series')
 
 installed_pkg = {pkg.key for pkg in pkg_resources.working_set}
 if 'ipdb' in installed_pkg:
@@ -27,7 +26,7 @@ class OHLCVIndicatorBase(pydantic.BaseModel):
     description: str = pydantic.Field(
         None, description="Indicator description")
 
-    values: pd.Series = pydantic.Field(
+    values: PandasSeries = pydantic.Field(
         None, description="Values of the indicator")
 
     open_var: str = pydantic.Field(
@@ -41,11 +40,11 @@ class OHLCVIndicatorBase(pydantic.BaseModel):
     volume_var: str = pydantic.Field(
         "volume", description="Volume data variable name")
 
-    plot_styling: dict = pydantic.Field(
-        {}, description="Indicator plot styling parameters")
+    # plot_styling: dict = pydantic.Field(
+    #     {}, description="Indicator plot styling parameters")
 
-    class Config:
-        arbitrary_types_allowed = True
+    # class Config:
+    #     arbitrary_types_allowed = True
 
     @pydantic.validator('name_label', always=True)
     def set_default_name_label(cls, name_label, values):
@@ -55,21 +54,30 @@ class OHLCVIndicatorBase(pydantic.BaseModel):
     def __init__(self, logging=logging, **data: typing.Any):
         super().__init__(**data)
 
-        # Default styling parameters
-        default_parameters_filename = \
-            os.path.join(os.path.dirname(__file__),
-                         "ohlcv_indicator_plot_default.yaml")
+        # # Default styling parameters
+        # default_parameters_filename = \
+        #     os.path.join(os.path.dirname(__file__),
+        #                  "ohlcv_indicator_plot_default.yaml")
 
-        with open(default_parameters_filename, 'r', encoding="utf-8") \
-                as yaml_file:
-            try:
-                plot_styling_default = yaml.load(yaml_file,
-                                                 Loader=yaml.SafeLoader)
-            except yaml.YAMLError as exc:
-                logging.error(exc)
+        # with open(default_parameters_filename, 'r', encoding="utf-8") \
+        #         as yaml_file:
+        #     try:
+        #         plot_styling_default = yaml.load(yaml_file,
+        #                                          Loader=yaml.SafeLoader)
+        #     except yaml.YAMLError as exc:
+        #         logging.error(exc)
 
-        conservative_merger.merge(self.plot_styling,
-                                  plot_styling_default)
+        # conservative_merger.merge(self.plot_styling,
+        #                           plot_styling_default)
+
+    def get_required_past_horizon(self):
+        past_hrz = [0]
+        if hasattr(self, "lag"):
+            past_hrz.append(self.lag - 1)
+        elif hasattr(self, "window_size"):
+            past_hrz.append(self.window_size - 2)
+
+        return max(past_hrz)
 
     def split_ohlcv(self, data_ohlcv_df):
         return data_ohlcv_df[self.open_var], \
@@ -366,8 +374,6 @@ class RangeIndexIndicator(OHLCVIndicatorBase):
 
         data_open, data_high, data_low, data_close, data_volume = \
             self.split_ohlcv(data_ohlcv_df)
-
-        # TO BE CONTINUED
 
         close_min = data_close.rolling(self.window_size).min()
         close_max = data_close.rolling(self.window_size).max()

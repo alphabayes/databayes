@@ -4,9 +4,11 @@ import logging
 import pydantic
 import typing
 import pandas as pd
+import re
 from .indicators import OHLCVIndicatorBase
 import pkg_resources
 
+PandasDataFrame = typing.TypeVar('pandas.core.frame.DataFrame')
 
 installed_pkg = {pkg.key for pkg in pkg_resources.working_set}
 if 'ipdb' in installed_pkg:
@@ -31,28 +33,30 @@ if 'dash-bootstrap-components' in installed_pkg:
 
 
 class ohlcvDataAnalyser(pydantic.BaseModel):
+
     target_time_horizon: typing.List[int] = pydantic.Field(
         [], description="Target prediction horizon given"
         " in data sampling time unit")
 
     target_var_filter: typing.Pattern = pydantic.Field(
-        ".", description="Target variable filtering pattern")
+        re.compile("."), description="Target variable filtering pattern")
     # discretization: dict = pydantic.Field(
     #     {}, description="Discretization specifications")
 
     indicators: typing.Dict[str, OHLCVIndicatorBase] = pydantic.Field(
         {}, description="Dictionary of indicators")
 
-    target_df: pd.DataFrame = pydantic.Field(
-        pd.DataFrame(),
-        description="Target data")
+    ohlcv_df: PandasDataFrame = pydantic.Field(
+        None, description="OHLCV data")
 
-    indic_df: pd.DataFrame = pydantic.Field(
-        pd.DataFrame(),
-        description="Indicators data")
+    target_df: PandasDataFrame = pydantic.Field(
+        None, description="Target data")
 
-    class Config:
-        arbitrary_types_allowed = True
+    indic_df: PandasDataFrame = pydantic.Field(
+        None, description="Indicators data")
+
+    ts_delta: int = pydantic.Field(
+        None, description="Timestamp delta")
 
     @pydantic.validator('indicators', pre=True)
     def validate_indicators(cls, indicators):
@@ -88,13 +92,137 @@ class ohlcvDataAnalyser(pydantic.BaseModel):
 
         return indicators
 
+    def reset_data(self):
+        self.ohlcv_df = None
+        self.target_df = None
+        self.indic_df = None
+
+    # DEPRECATED TO BE REMOVED
+    # def check_ts_delta(self, data_ohlcv_new_df=None):
+
+    #     if self.ts_delta is None:
+    #         return
+
+    #     if data_ohlcv_new_df is None:
+    #         ts_delta_series = \
+    #             self.ohlcv_df.index\
+    #                          .to_series()\
+    #                          .diff()\
+    #                          .iloc[1:]\
+    #                          .astype(int)
+    #         if (ts_delta_series != self.ts_delta).any():
+    #             # TODO: Using a value error is theoretically ok
+    #             # but hard to use in practice due to exchange data failure
+    #             ipdb.set_trace()
+    #             raise ValueError(
+    #                 "Timestamp delta is not constant in OHLCV data")
+    #     else:
+
+    #         ts_delta_old_new = \
+    #             int(data_ohlcv_new_df.iloc[0].name -
+    #                 self.ohlcv_df.iloc[-1].name)
+
+    #         if (ts_delta_old_new != self.ts_delta):
+    #             raise ValueError(
+    #                 "Timestamp delta of new OHLCV data is not consistent with old OHLCV data")
+
+    #         ts_delta_new_series = \
+    #             data_ohlcv_new_df.index\
+    #                              .to_series()\
+    #                              .diff()\
+    #                              .iloc[1:]\
+    #                              .astype(int)
+    #         if (ts_delta_new_series != self.ts_delta).any():
+    #             raise ValueError(
+    #                 "Timestamp delta is not constant in new OHLCV data")
+
+    def add_ohlcv_data(self, data_ohlcv_df, logging=logging):
+
+        if isinstance(data_ohlcv_df, pd.Series):
+            raise TypeError(
+                "Expected data format is a DataFrame (even for one data)")
+
+        if self.ohlcv_df is None:
+            self.ohlcv_df = data_ohlcv_df
+
+            # if len(self.ohlcv_df) >= 2:
+            #     # Check timestamp period
+            #     self.ts_delta = self.ohlcv_df.iloc[1].name - \
+            #         self.ohlcv_df.iloc[0].name
+
+            # self.check_ts_delta()
+        else:
+            # self.check_ts_delta(data_ohlcv_df)
+
+            idx_inter = data_ohlcv_df.index.intersection(self.ohlcv_df.index)
+            if len(idx_inter) > 0:
+                self.ohlcv_df.loc[idx_inter] = data_ohlcv_df.loc[idx_inter]
+
+            idx_concat = data_ohlcv_df.index.difference(self.ohlcv_df.index)
+            if len(idx_concat) > 0:
+                self.ohlcv_df = pd.concat(
+                    [self.ohlcv_df, data_ohlcv_df.loc[idx_concat]],
+                    axis=0)
+
+            # if len(self.ohlcv_df) >= 2 and (self.ts_delta is None):
+            #     # Check timestamp period
+            #     self.ts_delta = self.ohlcv_df.iloc[1].name - \
+            #         self.ohlcv_df.iloc[0].name
+
+        self.ohlcv_df.index.name = "timestamp"
+
+        if self.ts_delta is None:
+            # Set timestamp period if needed
+            self.set_ts_delta()
+
+        self.update_ts_index()
+
+    def set_ts_delta(self, ts_delta=None):
+
+        if (ts_delta is None) and len(self.ohlcv_df) >= 2:
+            self.ts_delta = self.ohlcv_df.iloc[1].name - \
+                self.ohlcv_df.iloc[0].name
+        else:
+            self.ts_delta = ts_delta
+
+    def update_ts_index(self):
+
+        if self.ts_delta is None:
+            return
+
+        ts_delta_series = \
+            self.ohlcv_df.index\
+                         .to_series()\
+                         .diff()\
+                         .iloc[1:]\
+                         .astype(int)
+
+        if (ts_delta_series != self.ts_delta).any():
+            self.ohlcv_df = \
+                self.ohlcv_df.reindex(
+                    pd.RangeIndex(self.ohlcv_df.index[0],
+                                  self.ohlcv_df.index[-1] + self.ts_delta,
+                                  self.ts_delta))
+            idx_dt_nat = self.ohlcv_df["datetime"].isnull()
+            self.ohlcv_df.loc[idx_dt_nat, "datetime"] = \
+                pd.to_datetime(self.ohlcv_df.index[idx_dt_nat],
+                               unit="ms")
+
     def prepare_data(self, data_ohlcv_df, logging=logging):
 
-        self.compute_targets(data_ohlcv_df,
-                             logging=logging)
+        self.add_ohlcv_data(data_ohlcv_df, logging=logging)
 
-        self.compute_indicators(data_ohlcv_df,
-                                logging=logging)
+        self.compute_targets(logging=logging)
+
+        self.compute_indicators(logging=logging)
+
+    def update_data(self, data_ohlcv_df, logging=logging):
+
+        self.add_ohlcv_data(data_ohlcv_df, logging=logging)
+
+        self.update_targets(logging=logging)
+
+        self.update_indicators(logging=logging)
 
     def to_csv(self, filename, dropna=False, **to_csv_params):
 
@@ -106,14 +234,14 @@ class ohlcvDataAnalyser(pydantic.BaseModel):
 
         data_all_df.to_csv(filename, **to_csv_params)
 
-    def compute_indicators(self, data_ohlcv_df, logging=logging):
+    def compute_indicators(self, logging=logging):
         logging.debug("> Compute indicators")
 
         data_indic_df_list = []
         for indicator_name, indicator_specs in self.indicators.items():
 
             indic_values = \
-                indicator_specs.compute(data_ohlcv_df, logging=logging)
+                indicator_specs.compute(self.ohlcv_df, logging=logging)
 
             data_indic_df_list.append(indic_values)
 
@@ -124,22 +252,105 @@ class ohlcvDataAnalyser(pydantic.BaseModel):
 
         return self.indic_df
 
-    def compute_targets(self, data_ohlcv_df,
-                        agg_specs={"high": "max",
-                                   "low": "min",
-                                   "volume": "sum"},
-                        logging=logging):
-        logging.debug("> Extract target variables")
+    def update_indicators(self,
+                          logging=logging):
+
+        if self.indic_df is None:
+            self.indic_df = pd.DataFrame(columns=list(self.indicators))
+
+        indic_new_df_list = []
+        for indic_name, indic_specs in self.indicators.items():
+
+            if len(self.indic_df[indic_name]) == 0:
+                ts_start = self.ohlcv_df.iloc[0].name
+
+            else:
+                t_past = indic_specs.get_required_past_horizon()
+                ts_start = self.indic_df.iloc[-1].name - \
+                    t_past*self.ts_delta
+
+            ohlcv_sel_df = self.ohlcv_df.loc[ts_start:]
+
+            indic_values = \
+                indic_specs.compute(ohlcv_sel_df, logging=logging)
+
+            indic_new_df_list.append(indic_values)
+
+        # indic_new_df = self.compute_targets_from_data(
+        #     ohlcv_sel_df,
+        #     agg_specs=agg_specs,
+        #     logging=logging)
+        indic_new_df = pd.concat(indic_new_df_list, axis=1)
+
+        # print(ohlcv_sel_df.head(25))
+        # print(self.indic_df.tail(25))
+        # print(indic_new_df.head(25))
+
+        # Note: Ensure dtypes persistence since combine_first doesn't
+        # preserve categorical type
+        self.indic_df = \
+            self.indic_df.combine_first(indic_new_df)\
+                         .astype(indic_new_df.dtypes)
+
+    def compute_indicators_from_data(self, ohlcv_df, logging=logging):
+
+        data_indic_df_list = []
+        for indicator_name, indicator_specs in self.indicators.items():
+
+            indic_values = \
+                indicator_specs.compute(ohlcv_df, logging=logging)
+
+            data_indic_df_list.append(indic_values)
+
+            # data_indic_df_d[indicator_name] = \
+            #     indicator_specs.compute(data_ohlcv_df, logging=logging)
+
+        indic_df = pd.concat(data_indic_df_list, axis=1)
+
+        return indic_df
+
+    def update_targets(self,
+                       agg_specs={"high": "max",
+                                  "low": "min",
+                                  "volume": "sum"},
+                       logging=logging):
+
+        if self.target_df is None:
+            self.target_df = pd.DataFrame()
+            ts_start = self.ohlcv_df.iloc[0].name
+
+        else:
+            t_hrz_max = max(self.target_time_horizon)
+            ts_start = self.target_df.iloc[-1].name - \
+                (t_hrz_max - 1)*self.ts_delta
+
+        ohlcv_sel_df = self.ohlcv_df.loc[ts_start:]
+
+        target_new_df = self.compute_targets_from_data(
+            ohlcv_sel_df,
+            agg_specs=agg_specs,
+            logging=logging)
+
+        self.target_df = \
+            self.target_df.combine_first(target_new_df)
+
+    def compute_targets_from_data(
+            self,
+            ohlcv_df,
+            agg_specs={"high": "max",
+                       "low": "min",
+                       "volume": "sum"},
+            logging=logging):
 
         data_target_df_list = []
         for t_hrz in self.target_time_horizon:
 
-            data_ohlcv_target_cur_df = data_ohlcv_df.rolling(t_hrz)\
+            data_ohlcv_target_cur_df = ohlcv_df.rolling(t_hrz)\
                 .agg(agg_specs)\
                 .shift(-t_hrz)
 
             data_ohlcv_target_cur_df["close"] = \
-                data_ohlcv_df["close"].shift(-t_hrz)
+                ohlcv_df["close"].shift(-t_hrz)
 
             data_ohlcv_target_cur_df.columns = \
                 [var + "_t" + str(t_hrz)
@@ -151,7 +362,7 @@ class ohlcvDataAnalyser(pydantic.BaseModel):
                            for var in ret_var]
             data_ret_target_cur_df = \
                 data_ohlcv_target_cur_df[ret_cur_var]\
-                .div(data_ohlcv_df["close"],
+                .div(ohlcv_df["close"],
                      axis=0) - 1
 
             data_ret_target_cur_df.columns = \
@@ -159,7 +370,7 @@ class ohlcvDataAnalyser(pydantic.BaseModel):
                  for var in data_ret_target_cur_df.columns]
 
             data_target_cur_df = pd.concat([data_ohlcv_target_cur_df,
-                                            data_ret_target_cur_df],
+                                           data_ret_target_cur_df],
                                            axis=1)
 
             var_match = [var for var in data_target_cur_df.columns
@@ -167,9 +378,18 @@ class ohlcvDataAnalyser(pydantic.BaseModel):
 
             data_target_df_list.append(data_target_cur_df[var_match])
 
-        self.target_df = pd.concat(data_target_df_list, axis=1)
+        return pd.concat(data_target_df_list, axis=1)
 
-        return self.target_df
+    def compute_targets(self,
+                        agg_specs={"high": "max",
+                                   "low": "min",
+                                   "volume": "sum"},
+                        logging=logging):
+
+        self.target_df = self.compute_targets_from_data(
+            self.ohlcv_df,
+            agg_specs=agg_specs,
+            logging=logging)
 
     def build_ml_data(self, logging=logging):
 

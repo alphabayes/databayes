@@ -56,6 +56,9 @@ class DiscretizationScheme(pydantic.BaseModel):
     suffix: str = pydantic.Field("",
                                  description="Suffix of the discretized variable")
 
+    force_str: bool = pydantic.Field(False,
+                                     description="Force string conversion for categories")
+
     def discretize(self, series, logging=None):
 
         # Skip processing if the variable is already categorical
@@ -69,10 +72,11 @@ class DiscretizationScheme(pydantic.BaseModel):
             series_d = self.fun(series, **self.params)
             series_d.name = self.prefix + series.name + self.suffix
 
-            cats_str = series_d.cat.categories.astype(str)
-            cat_type = pd.api.types.CategoricalDtype(categories=cats_str,
-                                                     ordered=True)
-            series_d = series_d.astype(str).astype(cat_type)
+            if self.force_str:
+                cats_str = series_d.cat.categories.astype(str)
+                cat_type = pd.api.types.CategoricalDtype(categories=cats_str,
+                                                         ordered=True)
+                series_d = series_d.astype(str).astype(cat_type)
 
             if not(logging is None):
                 logging.debug(

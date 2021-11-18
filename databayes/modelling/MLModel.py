@@ -16,6 +16,8 @@ if 'scipy' in installed_pkg:
     import scipy.stats  # noqa: F401
 
 
+# TODO:Convert as a classmethod
+# Maybe overload the from_dict pydantic method
 def create_mlmodel(**specs):
 
     MLModel_sub_dict = {cls.__name__: cls for cls in get_subclasses(MLModel)}
@@ -46,8 +48,8 @@ class FitParametersBase(pydantic.BaseModel):
 
 class PredictParametersBase(pydantic.BaseModel):
 
-    var_discrete_support: typing.Dict[str, dict] = pydantic.Field(
-        {}, description="Dictionary specifying for variables support (bins or domain)")
+    # var_discrete_support: typing.Dict[str, dict] = pydantic.Field(
+    #     {}, description="Dictionary specifying for variables support (bins or domain)")
 
     predict_postprocess: typing.Dict[str, dict] = pydantic.Field(
         {}, description="Optional predict postprocessing for variable")
@@ -68,11 +70,9 @@ class HyperParametersBase(pydantic.BaseModel):
 class MLModel(pydantic.BaseModel):
     """ML model schema."""
 
-    # FUTUR USAGE: DB Storing
-    id: str = pydantic.Field("", description="Unique id of the model")
-    tags: typing.List[str] = pydantic.Field([], description="The model tags")
+    name: str = pydantic.Field(None, description="Model short name")
 
-    type: str = pydantic.Field(None, description="Model type")
+    title: str = pydantic.Field(None, description="Model name")
 
     fit_parameters: FitParametersBase = pydantic.Field(FitParametersBase(),
                                                        description="Model fitting parameters")
@@ -104,8 +104,8 @@ class MLModel(pydantic.BaseModel):
     nb_data_fit: int = pydantic.Field(
         0, description="Number of data used to fit the model")
 
-    metadata: ModelMetaData = pydantic.Field(default={},
-                                             description="Model metadata")
+    # metadata: ModelMetaData = pydantic.Field(default={},
+    #                                          description="Model metadata")
 
     def __str__(self):
 
