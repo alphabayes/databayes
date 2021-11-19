@@ -6,6 +6,9 @@ import re
 import pkg_resources
 import os
 from intervals import FloatInterval
+import glob
+import datetime
+import tqdm
 
 installed_pkg = {pkg.key for pkg in pkg_resources.working_set}
 
@@ -220,11 +223,27 @@ class DataImporter(pydantic.BaseModel):
     data_raw_status_filename: str = pydantic.Field(
         "data_raw_status.csv", description="Raw data status filename")
 
+    data_raw_status_df: PandasDataFrame = pydantic.Field(
+        None,
+        description="Data raw status dataframe")
+
+    data_raw_read_params: dict = pydantic.Field(
+        dict(),
+        description="Parameters passed to pd.read_csv function to read raw data")
+
     data_tidy_dir: str = pydantic.Field(
         "./data_tidy/", description="Tidy data directory")
 
     data_tidy_filename: str = pydantic.Field(
         "data_tidy.csv", description="Tidy data filename")
+
+    data_tidy_read_params: dict = pydantic.Field(
+        dict(),
+        description="Parameters passed to pd.read_csv function to read the tidy dataframe")
+
+    data_tidy_write_params: dict = pydantic.Field(
+        dict(),
+        description="Parameters passed to .to_csv method to write the tidy dataframe")
 
     reload_data: bool = pydantic.Field(
         False, description="Reset tidy data and reload all raw data")
@@ -233,7 +252,7 @@ class DataImporter(pydantic.BaseModel):
         "*", description="Data raw filename pattern to be processed")
 
     data_df: PandasDataFrame = pydantic.Field(
-        pd.DataFrame(), description="Data tidy")
+        None, description="Data tidy")
 
     def __init__(self, logger=None, **data: typing.Any):
         super().__init__(**data)
@@ -243,7 +262,7 @@ class DataImporter(pydantic.BaseModel):
     def init_env(self, logger=None):
 
         if not(logger is None):
-            logger.info("ETL process initialization")
+            logger.info("ETL process init")
         if not(os.path.exists(self.data_tidy_dir)):
             if not(logger is None):
                 logger.info(
@@ -254,29 +273,42 @@ class DataImporter(pydantic.BaseModel):
         if self.reload_data:
             if not(logger is None):
                 logger.info(f"> Data reloading requested")
-            self.data_tidy_df = pd.DataFrame()
+            self.data_df = None
         else:
-            mycotoxins_filename = \
+            data_tidy_pathname = \
                 os.path.join(self.data_tidy_dir,
-                             self.mycotoxins_filename)
+                             self.data_tidy_filename)
 
-            if os.path.exists(mycotoxins_filename):
+            if os.path.exists(data_tidy_pathname):
                 if not(logger is None):
                     logger.info(
-                        f"> Load mycostoxins data from file: {mycotoxins_filename}")
+                        f"> Load raw data from file: {data_tidy_pathname}")
 
-                self.data_tidy_df = pd.read_csv(mycotoxins_filename, sep=";",
-                                                encoding="utf-8",
-                                                parse_dates=["analysis_date"])
+                self.data_df = pd.read_csv(data_tidy_pathname,
+                                           **self.data_tidy_read_params)
 
-                self.postprocess_data_tidy(logger=logger)
+                self.data_tidy_post_reading()
 
+        self.collect_new_data(logger=logger)
+
+    def data_tidy_post_reading(self, logger=None):
+        """Method called just after loading tidy data.
+        """
+        pass
+        # self.mycotoxins_df["sub_area"] = \
+        #     self.mycotoxins_df["sub_area"].astype(str)
+
+        # self.mycotoxins_df['analysis_date'] = \
+        #     pd.to_datetime(
+        #         self.mycotoxins_df['analysis_date'], 'coerce')
+
+    def collect_new_data(self, logger=None):
         data_raw_status_filename = \
             os.path.join(self.data_tidy_dir,
                          self.data_raw_status_filename)
 
         if os.path.exists(data_raw_status_filename) and \
-           len(self.data_tidy_df) > 0:
+           not(self.data_df is None):
 
             self.data_raw_status_df = pd.read_csv(
                 data_raw_status_filename, sep=";")
@@ -319,22 +351,6 @@ class DataImporter(pydantic.BaseModel):
                 .fillna(datetime.datetime.now())\
                 .astype("datetime64")
 
-    def post_process_data_tidy(self, logger=None):
-        """Method called just after loading tidy data.
-
-        Overload this method to put postprocessing code here
-        """
-        # Convert departments in string
-        self.data_tidy_df['department'] = \
-            self.data_tidy_df['department'].astype(str)
-
-        # TODO: Is this relevant ?
-        self.data_tidy_df['analysis_date'] = \
-            pd.to_datetime(
-                self.data_tidy_df['analysis_date'], 'coerce')
-
-        # pass
-
     def run(self, logger=None, progress_mode=True):
 
         # self.init_env(logger=logger)
@@ -345,7 +361,7 @@ class DataImporter(pydantic.BaseModel):
 
         for data_index in tqdm.tqdm(
                 data_raw_status_to_process_df.index,
-                desc="Processing mycotoxins raw data files",
+                desc="Processing raw data files",
                 unit="File",
                 disable=not(progress_mode)):
 
@@ -370,8 +386,7 @@ class DataImporter(pydantic.BaseModel):
                 self.update_data_tidy(data_tidy_new_df,
                                       logger=logger)
 
-                self.save_data_tidy(data_tidy_new_df,
-                                    logger=logger)
+                self.save_data_tidy(logger=logger)
 
                 status = "OK"
 
@@ -387,7 +402,16 @@ class DataImporter(pydantic.BaseModel):
             # ipdb.set_trace()
 
     def load_data_raw(self, filename, logger=None):
-        return pd.DataFrame()
+        if filename.split(".")[-1] == "xlsx":
+            data_raw_df = pd.read_excel(
+                filename,
+                **self.data_raw_read_params)
+        else:
+            data_raw_df = \
+                pd.read_csv(filename,
+                            **self.data_raw_read_params)
+
+        return data_raw_df
 
     def transform_data_raw(self, data_raw_df, logger=None):
         return data_raw_df
@@ -398,28 +422,23 @@ class DataImporter(pydantic.BaseModel):
             logger.warning("> No tidy data to update")
             return
 
-        self.data_tidy_df = pd.concat(
-            [self.data_tidy_df, data_tidy_new_df],
+        self.data_df = pd.concat(
+            [self.data_df, data_tidy_new_df],
             ignore_index=True,
             axis=0)
 
         logger.info(
             f"> # new data added: {len(data_tidy_new_df)}")
 
-        # TODO: MOVE THIS IN transform_method
-        # Replace empty field with "no info" string
-        self.data_tidy_df.fillna('no info', inplace=True)
-
     def save_data_tidy(self, logger=None):
 
         data_tidy_filename = os.path.join(self.data_tidy_dir,
                                           self.data_tidy_filename)
-        self.data_tidy_df.to_csv(data_tidy_filename,
-                                 sep=";",
-                                 encoding="utf-8",
-                                 index=False)
-        logger.info(
-            f"> Tidy data saved in file: {data_tidy_filename}")
+        self.data_df.to_csv(data_tidy_filename,
+                            **self.data_tidy_write_params)
+        if not(logger is None):
+            logger.info(
+                f"> Tidy data saved in file: {data_tidy_filename}")
 
     def update_data_raw_status(self,
                                data_index,
