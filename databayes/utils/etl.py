@@ -12,6 +12,8 @@ installed_pkg = {pkg.key for pkg in pkg_resources.working_set}
 if 'ipdb' in installed_pkg:
     import ipdb  # noqa: F401
 
+PandasDataFrame = typing.TypeVar('pd.core.dataframe')
+
 
 # ETL functions
 def pdInterval_from_string(s):
@@ -210,98 +212,229 @@ def discretize(data_df, var_specs={},
     return data_ddf
 
 
-def split_csv_file(filename,
-                   event_col_name,
-                   separator,
-                   date_min=None,
-                   date_max=None,
-                   time_range=None,
-                   nb_parts=None):
-    """" This function split a csv file  according to two possible rules :  If  "time range" is given in  input, the
-    split will be done according to the specified time col  between the input date_min and date_max. If nb_parts is given
-    the split will be done  by cutting the col_event_name into equal parts
+class DataImporter(pydantic.BaseModel):
 
-    The csv ouputs are saved in a subfolder named : filename_split . If time_range is found, then it used for plit otherwise, nb of row should be
-    defined in input.
-        inputs:
-            - filename: name of the file to split
-            - time_range: Pandas frequency chosen for the chosen cut
-            - nb_parts: Nunber of parts of the output split
-            - date_min: lowest date of the data set to split
-            - date_max: Highest date of the data set to split
-            - event_col_name: Name of the reference column for splitting
-            - separator: separator used by the csv file
-        output:
-            Set of csv files stored in : filename_split/filename_split_part_x
-        Example:
-            generic_lib.general_tools.split_csv_file(filename='data_raw/SIGNALEMENTS/SIGNALEMENT.csv',
-                                                time_range='1Y',
-                                                date_min='01/01/2012',
-                                                date_max='01/01/2019',
-                                                event_col_name='SIG_DATE',
-                                                separator=";")
+    data_raw_dir: str = pydantic.Field(
+        "./data_raw/", description="Raw data directory")
 
-            generic_lib.general_tools.split_csv_file(filename=path,
-                                                    nb_part=10,
-                                                    event_col_name='OT_ID',
-                                                    separator=";")"""
+    data_raw_status_filename: str = pydantic.Field(
+        "data_raw_status.csv", description="Raw data status filename")
 
-    # Create outputt directory if it does not exist
-    output_dir_name = filename[:-4] + '_split'
-    exact_name = filename[filename.rfind('/') + 1:len(filename) - 4]
+    data_tidy_dir: str = pydantic.Field(
+        "./data_tidy/", description="Tidy data directory")
 
-    if not os.path.exists(output_dir_name):
-        os.makedirs(output_dir_name)
+    data_tidy_filename: str = pydantic.Field(
+        "data_tidy.csv", description="Tidy data filename")
 
-    # Read the csv file
-    input_df = pd.read_csv(filename, sep=separator)
+    reload_data: bool = pydantic.Field(
+        False, description="Reset tidy data and reload all raw data")
 
-    # Create the list of interval for the cut
+    data_raw_pattern: str = pydantic.Field(
+        "*", description="Data raw filename pattern to be processed")
 
-    if not (time_range is None):
+    data_df: PandasDataFrame = pydantic.Field(
+        pd.DataFrame(), description="Data tidy")
 
-        # Read input dates
+    def __init__(self, logger=None, **data: typing.Any):
+        super().__init__(**data)
 
-        date_min = pd.Timestamp(date_min)
-        date_max = pd.Timestamp(date_max)
-        print('Chosen dates for the intervall to split : ', date_min, date_max)
+        self.init_env(logger=logger)
 
-        # Datetype conversion
-        input_df[event_col_name] = pd.to_datetime(input_df[event_col_name])
+    def init_env(self, logger=None):
 
-        #  Create time intervals for split
+        if not(logger is None):
+            logger.info("ETL process initialization")
+        if not(os.path.exists(self.data_tidy_dir)):
+            if not(logger is None):
+                logger.info(
+                    f"> Create tidy data directory: {self.data_tidy_dir}")
 
-        range_interval = list(pd.date_range(
-            start=date_min, end=date_max, freq=time_range))
-        intervals_list = [date_min] + range_interval + [date_max]
+            os.mkdir(self.data_tidy_dir)
 
-        for i in range(0, len(intervals_list) - 1):
-            low_bound = intervals_list[i]
-            max_bound = intervals_list[i + 1]
-            mask = (input_df[event_col_name] > low_bound) & (
-                input_df[event_col_name] <= max_bound)
+        if self.reload_data:
+            if not(logger is None):
+                logger.info(f"> Data reloading requested")
+            self.data_tidy_df = pd.DataFrame()
+        else:
+            mycotoxins_filename = \
+                os.path.join(self.data_tidy_dir,
+                             self.mycotoxins_filename)
 
-            df_temp = input_df.loc[mask]
+            if os.path.exists(mycotoxins_filename):
+                if not(logger is None):
+                    logger.info(
+                        f"> Load mycostoxins data from file: {mycotoxins_filename}")
 
-            print('df number : ', i, 'between date ',
-                  low_bound, ' and date', max_bound)
+                self.data_tidy_df = pd.read_csv(mycotoxins_filename, sep=";",
+                                                encoding="utf-8",
+                                                parse_dates=["analysis_date"])
 
-            filename_temp = output_dir_name + '/' + \
-                exact_name + '_split_part_' + str(i) + '.csv'
-            df_temp.to_csv(filename_temp, sep=separator, index=False)
+                self.postprocess_data_tidy(logger=logger)
 
-    if not (nb_parts is None):
-        #  Cuts the set of event_id
+        data_raw_status_filename = \
+            os.path.join(self.data_tidy_dir,
+                         self.data_raw_status_filename)
 
-        intervals_list = pd.cut(
-            list(input_df[event_col_name].unique()), bins=nb_parts).categories
-        print('liste des intervalles', intervals_list)
+        if os.path.exists(data_raw_status_filename) and \
+           len(self.data_tidy_df) > 0:
 
-        for i in range(0, len(intervals_list)):
-            interval = intervals_list[i]
-            mask = input_df[event_col_name].apply(lambda x: x in interval)
-            df_temp = input_df.loc[mask]
-            print('df number : ', i, 'sur lintervalle', interval)
-            filename_temp = output_dir_name + '/' + \
-                exact_name + '_split_part_' + str(i) + '.csv'
-            df_temp.to_csv(filename_temp, sep=separator, index=False)
+            self.data_raw_status_df = pd.read_csv(
+                data_raw_status_filename, sep=";")
+        else:
+            self.data_raw_status_df = \
+                pd.DataFrame(columns=["filename",
+                                      "path",
+                                      "status",
+                                      "last_update",
+                                      "nb_data"])
+
+        if not(logger is None):
+            logger.info(
+                f"> Collect raw data filenames from directory: {self.data_raw_dir}")
+
+        data_raw_path_list = \
+            [{"filename": os.path.basename(path),
+              "path": path}
+             for path in sorted(glob.glob(os.path.join(self.data_raw_dir,
+                                                       self.data_raw_pattern)))]
+
+        data_raw_new_df = pd.DataFrame(data_raw_path_list)
+
+        self.data_raw_status_df = \
+            pd.concat([self.data_raw_status_df,
+                       data_raw_new_df],
+                      sort=False,
+                      ignore_index=True,
+                      axis=0).drop_duplicates(subset=["filename"],
+                                              keep="first")
+
+        self.data_raw_status_df["status"] = \
+            self.data_raw_status_df["status"].fillna("New")
+
+        self.data_raw_status_df["nb_data"] = \
+            self.data_raw_status_df["nb_data"].fillna(0).astype(int)
+
+        self.data_raw_status_df["last_update"] = \
+            self.data_raw_status_df["last_update"]\
+                .fillna(datetime.datetime.now())\
+                .astype("datetime64")
+
+    def post_process_data_tidy(self, logger=None):
+        """Method called just after loading tidy data.
+
+        Overload this method to put postprocessing code here
+        """
+        # Convert departments in string
+        self.data_tidy_df['department'] = \
+            self.data_tidy_df['department'].astype(str)
+
+        # TODO: Is this relevant ?
+        self.data_tidy_df['analysis_date'] = \
+            pd.to_datetime(
+                self.data_tidy_df['analysis_date'], 'coerce')
+
+        # pass
+
+    def run(self, logger=None, progress_mode=True):
+
+        # self.init_env(logger=logger)
+
+        # Get raw data filename to be integrated
+        data_raw_status_to_process_df = \
+            self.data_raw_status_df[self.data_raw_status_df["status"] != "OK"]
+
+        for data_index in tqdm.tqdm(
+                data_raw_status_to_process_df.index,
+                desc="Processing mycotoxins raw data files",
+                unit="File",
+                disable=not(progress_mode)):
+
+            data_raw_pathname = data_raw_status_to_process_df.loc[data_index, "path"]
+            data_raw_filename = data_raw_status_to_process_df.loc[data_index, "filename"]
+
+            if not(logger is None):
+                logger.info(
+                    f"> Try to process data file: {data_raw_pathname}")
+
+            try:
+
+                data_raw_cur_df = \
+                    self.load_data_raw(data_raw_pathname,
+                                       logger=logger)
+
+                data_tidy_new_df = self.transform_data_raw(data_raw_cur_df,
+                                                           logger=logger)
+                # Add columns to keep track of origin filename
+                data_tidy_new_df["from_file"] = data_raw_filename
+
+                self.update_data_tidy(data_tidy_new_df,
+                                      logger=logger)
+
+                self.save_data_tidy(data_tidy_new_df,
+                                    logger=logger)
+
+                status = "OK"
+
+            except Exception as ex:
+                logger.error(f"> Processing error: {str(ex)}")
+                data_tidy_new_df = []  # To register nb new data
+                status = "Error: " + str(ex)
+
+            self.update_data_raw_status(data_index=data_index,
+                                        status=status,
+                                        nb_data=len(data_tidy_new_df),
+                                        logger=logger)
+            # ipdb.set_trace()
+
+    def load_data_raw(self, filename, logger=None):
+        return pd.DataFrame()
+
+    def transform_data_raw(self, data_raw_df, logger=None):
+        return data_raw_df
+
+    def update_data_tidy(self, data_tidy_new_df, logger=None):
+
+        if len(data_tidy_new_df) == 0:
+            logger.warning("> No tidy data to update")
+            return
+
+        self.data_tidy_df = pd.concat(
+            [self.data_tidy_df, data_tidy_new_df],
+            ignore_index=True,
+            axis=0)
+
+        logger.info(
+            f"> # new data added: {len(data_tidy_new_df)}")
+
+        # TODO: MOVE THIS IN transform_method
+        # Replace empty field with "no info" string
+        self.data_tidy_df.fillna('no info', inplace=True)
+
+    def save_data_tidy(self, logger=None):
+
+        data_tidy_filename = os.path.join(self.data_tidy_dir,
+                                          self.data_tidy_filename)
+        self.data_tidy_df.to_csv(data_tidy_filename,
+                                 sep=";",
+                                 encoding="utf-8",
+                                 index=False)
+        logger.info(
+            f"> Tidy data saved in file: {data_tidy_filename}")
+
+    def update_data_raw_status(self,
+                               data_index,
+                               status,
+                               nb_data,
+                               logger=None):
+
+        self.data_raw_status_df.loc[data_index, "status"] = status
+        self.data_raw_status_df.loc[data_index, "nb_data"] = nb_data
+        self.data_raw_status_df.loc[data_index,
+                                    "last_update"] = datetime.datetime.now()
+
+        data_raw_status_filename = os.path.join(self.data_tidy_dir,
+                                                self.data_raw_status_filename)
+
+        self.data_raw_status_df.to_csv(data_raw_status_filename,
+                                       sep=";",
+                                       index=False)
