@@ -2,7 +2,8 @@ import numpy as np
 import pandas as pd
 import pydantic
 import typing
-from reliability.Fitters import Fit_Weibull_2P
+# TODO : BROKEN : REPLACE IT WITH LIFELINES
+# from reliability.Fitters import Fit_Weibull_2P
 
 from .DiscreteDistribution import DiscreteDistribution
 from .MLModel import PredictParametersBase, FitParametersBase, MLModel, HyperParametersBase

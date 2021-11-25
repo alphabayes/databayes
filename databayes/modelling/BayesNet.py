@@ -293,7 +293,6 @@ class BayesianNetwork(pydantic.BaseModel):
 
     def pyagrum_update_parents(self, var_name):
         for parent in self.parents.get(var_name, []):
-
             if (var_name in self.bn.names()) and \
                (parent in self.bn.names()):
                 self.bn.addArc(parent, var_name)
@@ -311,7 +310,11 @@ class BayesianNetwork(pydantic.BaseModel):
         if not(var_name in self.cct):
             init_cct = True
         else:
-            var_domain_labels_cur = self.get_cct(var_name, flatten=True).index
+
+            var_domain_labels_cur = pd.DataFrame(self.cct[var_name]).columns
+
+            # DOES NOT WORK ANYMORE WITH ADD_PARENT
+            #var_domain_labels_cur = self.get_cct(var_name, flatten=True).index
 
             if len(var_domain) == 1:
                 init_cct = set(var_domain_labels.levels[0]) != \
@@ -322,6 +325,7 @@ class BayesianNetwork(pydantic.BaseModel):
 
         # Erase CCT only if CPT structure has changed
         if init_cct:
+
             # Init CCT as a DataFrame
             cct_df = pd.Series(0, index=var_domain_labels, name="count")
 
