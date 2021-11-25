@@ -231,6 +231,9 @@ class DataImporter(pydantic.BaseModel):
         dict(),
         description="Parameters passed to pd.read_csv function to read raw data")
 
+    data_tidy_updated: bool = pydantic.Field(
+        False, description="Indicates if tidy data have been updated")
+
     data_tidy_dir: str = pydantic.Field(
         "./data_tidy/", description="Tidy data directory")
 
@@ -401,6 +404,8 @@ class DataImporter(pydantic.BaseModel):
                                         logger=logger)
             # ipdb.set_trace()
 
+        self.data_tidy_post_reading()
+
     def load_data_raw(self, filename, logger=None):
         if filename.split(".")[-1] == "xlsx":
             data_raw_df = pd.read_excel(
@@ -430,6 +435,8 @@ class DataImporter(pydantic.BaseModel):
         logger.info(
             f"> # new data added: {len(data_tidy_new_df)}")
 
+        self.data_tidy_updated_hook()
+
     def save_data_tidy(self, logger=None):
 
         data_tidy_filename = os.path.join(self.data_tidy_dir,
@@ -457,3 +464,8 @@ class DataImporter(pydantic.BaseModel):
         self.data_raw_status_df.to_csv(data_raw_status_filename,
                                        sep=";",
                                        index=False)
+
+    def data_tidy_updates_hook(self, logger=None):
+        """ Method called after data tidy update.
+        """
+        pass
