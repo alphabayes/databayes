@@ -1,8 +1,8 @@
-import gspread
 import pydantic
 import typing
 import logging
 import pandas as pd
+import numpy as np
 
 from .db_base import DBBase
 
@@ -11,6 +11,11 @@ import pkg_resources
 installed_pkg = {pkg.key for pkg in pkg_resources.working_set}
 if 'ipdb' in installed_pkg:
     import ipdb  # noqa: F401
+
+if 'gspread' in installed_pkg:
+    import gspread  # noqa: F401
+else:
+    raise ModuleNotFoundError("Please install gspread module")
 
 
 class GSpreadConfig(pydantic.BaseModel):
@@ -76,6 +81,7 @@ class DBGSpread(DBBase):
             add_worksheet_rows=1000,
             add_worksheet_cols=26,
             clear=False,
+            index=False,
             **params):
 
         if isinstance(data, list) and not(isinstance(data[0], list)):
@@ -102,7 +108,18 @@ class DBGSpread(DBBase):
 
         try:
             if isinstance(data, pd.DataFrame):
-                worksheet.append_rows(data.values.tolist(), **params)
+                data_export = data.fillna("")
+                if index:
+                    data_export = data_export.reset_index()
+
+                # Clean not json serialisable
+                var_datetime = \
+                    data_export.select_dtypes(include=[np.datetime64])\
+                               .columns
+                data_export[var_datetime] = \
+                    data_export[var_datetime].astype(str)
+
+                worksheet.append_rows(data_export.values.tolist(), **params)
             else:
                 if header:
                     worksheet.append_rows(data[1:], **params)

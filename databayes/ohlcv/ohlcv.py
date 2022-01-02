@@ -7,6 +7,7 @@ import pandas as pd
 import re
 from .indicators import OHLCVIndicatorBase
 import pkg_resources
+from ..utils import get_subclasses
 
 PandasDataFrame = typing.TypeVar('pandas.core.frame.DataFrame')
 
@@ -38,10 +39,21 @@ class ohlcvDataAnalyser(pydantic.BaseModel):
         [], description="Target prediction horizon given"
         " in data sampling time unit")
 
+    perf_time_horizon: typing.List[int] = pydantic.Field(
+        [], description="Performance horizon given"
+        " in data sampling time unit")
+
     target_var_filter: typing.Pattern = pydantic.Field(
         re.compile("."), description="Target variable filtering pattern")
+
+    perf_var_filter: typing.Pattern = pydantic.Field(
+        re.compile("."), description="Perf variable filtering pattern")
+
     # discretization: dict = pydantic.Field(
     #     {}, description="Discretization specifications")
+
+    ohlcv_names: dict = pydantic.Field(
+        {}, description="OHLCV name dictionnary")
 
     indicators: typing.Dict[str, OHLCVIndicatorBase] = pydantic.Field(
         {}, description="Dictionary of indicators")
@@ -52,89 +64,80 @@ class ohlcvDataAnalyser(pydantic.BaseModel):
     target_df: PandasDataFrame = pydantic.Field(
         None, description="Target data")
 
+    perf_df: PandasDataFrame = pydantic.Field(
+        None, description="Past performance data")
+
     indic_df: PandasDataFrame = pydantic.Field(
         None, description="Indicators data")
 
     ts_delta: int = pydantic.Field(
         None, description="Timestamp delta")
 
-    @pydantic.validator('indicators', pre=True)
-    def validate_indicators(cls, indicators):
+    control_regular_ts_delta: bool = pydantic.Field(
+        True, description="Indicates if we don't want to maintain regular timestamp interval")
 
-        indicator_classes_d = {cls.__name__: cls
-                               for cls in OHLCVIndicatorBase.__subclasses__()}
+    @pydantic.root_validator(pre=True)
+    def cls_validator(cls, obj):
 
-        for indicator_name, indicator_specs in indicators.items():
+        indicator_classes_d = {clz.__name__: clz
+                               for clz in get_subclasses(OHLCVIndicatorBase)}
 
-            indicator_class_name_token = \
-                indicator_specs.pop("class", indicator_name).split("_")
+        for indicator_name, indicator_specs in obj.get("indicators", {}).items():
 
-            indicator_class_name = \
-                "".join([word.capitalize() if not(word.isupper()) else word
-                         for word in indicator_class_name_token]) \
-                if len(indicator_class_name_token) >= 2 \
-                else indicator_class_name_token[0]
+            if any([isinstance(indicator_specs, mcls)
+                    for mcls in indicator_classes_d.values()]):
+                continue
 
-            if not(indicator_class_name.endswith("Indicator")):
-                indicator_class_name += "Indicator"
+            indicator_specs.setdefault("name", indicator_name)
 
-            if not(indicator_class_name in indicator_classes_d.keys()):
-                raise ValueError(
-                    f"Indicator {indicator_name}"
-                    f"(or class {indicator_class_name}) not supported")
-            if indicator_specs is None:
-                indicator_specs = {}
+            # Add OHLCV name dictionnary if not specified
+            for name, name_data in obj.get("ohlcv_names", {}).items():
+                indicator_specs.setdefault(name, name_data)
 
-            indic_cls = indicator_classes_d.get(indicator_class_name)
-            indicators[indicator_name] = \
-                indic_cls(name=indicator_name,
-                          **indicator_specs)
+            obj["indicators"][indicator_name] = \
+                OHLCVIndicatorBase.from_dict(**indicator_specs)
 
-        return indicators
+        return obj
+
+    # @pydantic.validator('indicators', pre=True)
+    # def validate_indicators(cls, indicators):
+
+    #     indicator_classes_d = {cls.__name__: cls
+    #                            for cls in OHLCVIndicatorBase.__subclasses__()}
+
+    #     for indicator_name, indicator_specs in indicators.items():
+
+    #         indicator_class_name_token = \
+    #             indicator_specs.pop("class", indicator_name).split("_")
+
+    #         indicator_class_name = \
+    #             "".join([word.capitalize() if not(word.isupper()) else word
+    #                      for word in indicator_class_name_token]) \
+    #             if len(indicator_class_name_token) >= 2 \
+    #             else indicator_class_name_token[0]
+
+    #         if not(indicator_class_name.endswith("Indicator")):
+    #             indicator_class_name += "Indicator"
+
+    #         if not(indicator_class_name in indicator_classes_d.keys()):
+    #             raise ValueError(
+    #                 f"Indicator {indicator_name}"
+    #                 f"(or class {indicator_class_name}) not supported")
+    #         if indicator_specs is None:
+    #             indicator_specs = {}
+
+    #         indic_cls = indicator_classes_d.get(indicator_class_name)
+    #         indicators[indicator_name] = \
+    #             indic_cls(name=indicator_name,
+    #                       **indicator_specs)
+
+    #     return indicators
 
     def reset_data(self):
         self.ohlcv_df = None
         self.target_df = None
+        self.perf_df = None
         self.indic_df = None
-
-    # DEPRECATED TO BE REMOVED
-    # def check_ts_delta(self, data_ohlcv_new_df=None):
-
-    #     if self.ts_delta is None:
-    #         return
-
-    #     if data_ohlcv_new_df is None:
-    #         ts_delta_series = \
-    #             self.ohlcv_df.index\
-    #                          .to_series()\
-    #                          .diff()\
-    #                          .iloc[1:]\
-    #                          .astype(int)
-    #         if (ts_delta_series != self.ts_delta).any():
-    #             # TODO: Using a value error is theoretically ok
-    #             # but hard to use in practice due to exchange data failure
-    #             ipdb.set_trace()
-    #             raise ValueError(
-    #                 "Timestamp delta is not constant in OHLCV data")
-    #     else:
-
-    #         ts_delta_old_new = \
-    #             int(data_ohlcv_new_df.iloc[0].name -
-    #                 self.ohlcv_df.iloc[-1].name)
-
-    #         if (ts_delta_old_new != self.ts_delta):
-    #             raise ValueError(
-    #                 "Timestamp delta of new OHLCV data is not consistent with old OHLCV data")
-
-    #         ts_delta_new_series = \
-    #             data_ohlcv_new_df.index\
-    #                              .to_series()\
-    #                              .diff()\
-    #                              .iloc[1:]\
-    #                              .astype(int)
-    #         if (ts_delta_new_series != self.ts_delta).any():
-    #             raise ValueError(
-    #                 "Timestamp delta is not constant in new OHLCV data")
 
     def add_ohlcv_data(self, data_ohlcv_df, logging=logging):
 
@@ -175,7 +178,8 @@ class ohlcvDataAnalyser(pydantic.BaseModel):
             # Set timestamp period if needed
             self.set_ts_delta()
 
-        self.update_ts_index()
+        if self.control_regular_ts_delta:
+            self.update_ts_index()
 
     def set_ts_delta(self, ts_delta=None):
 
@@ -214,6 +218,8 @@ class ohlcvDataAnalyser(pydantic.BaseModel):
 
         self.compute_targets(logging=logging)
 
+        self.compute_perf(logging=logging)
+
         self.compute_indicators(logging=logging)
 
     def update_data(self, data_ohlcv_df, logging=logging):
@@ -221,6 +227,8 @@ class ohlcvDataAnalyser(pydantic.BaseModel):
         self.add_ohlcv_data(data_ohlcv_df, logging=logging)
 
         self.update_targets(logging=logging)
+
+        self.update_perf(logging=logging)
 
         self.update_indicators(logging=logging)
 
@@ -280,17 +288,18 @@ class ohlcvDataAnalyser(pydantic.BaseModel):
         #     ohlcv_sel_df,
         #     agg_specs=agg_specs,
         #     logging=logging)
-        indic_new_df = pd.concat(indic_new_df_list, axis=1)
+        if len(indic_new_df_list) > 0:
+            indic_new_df = pd.concat(indic_new_df_list, axis=1)
 
-        # print(ohlcv_sel_df.head(25))
-        # print(self.indic_df.tail(25))
-        # print(indic_new_df.head(25))
+            # print(ohlcv_sel_df.head(25))
+            # print(self.indic_df.tail(25))
+            # print(indic_new_df.head(25))
 
-        # Note: Ensure dtypes persistence since combine_first doesn't
-        # preserve categorical type
-        self.indic_df = \
-            self.indic_df.combine_first(indic_new_df)\
-                         .astype(indic_new_df.dtypes)
+            # Note: Ensure dtypes persistence since combine_first doesn't
+            # preserve categorical type
+            self.indic_df = \
+                self.indic_df.combine_first(indic_new_df)\
+                             .astype(indic_new_df.dtypes)
 
     def compute_indicators_from_data(self, ohlcv_df, logging=logging):
 
@@ -310,37 +319,47 @@ class ohlcvDataAnalyser(pydantic.BaseModel):
         return indic_df
 
     def update_targets(self,
-                       agg_specs={"high": "max",
-                                  "low": "min",
-                                  "volume": "sum"},
                        logging=logging):
 
+        if len(self.target_time_horizon) == 0:
+            return
+        # ipdb.set_trace()
         if self.target_df is None:
             self.target_df = pd.DataFrame()
-            ts_start = self.ohlcv_df.iloc[0].name
+            #ts_start = self.ohlcv_df.iloc[0].name
+            ts_start_idx = 0
 
         else:
             t_hrz_max = max(self.target_time_horizon)
-            ts_start = self.target_df.iloc[-1].name - \
-                (t_hrz_max - 1)*self.ts_delta
+            ts_start_idx = len(self.target_df) - t_hrz_max
+            # ts_start = self.target_df.iloc[-1].name - \
+            #     (t_hrz_max - 1)*self.ts_delta
 
-        ohlcv_sel_df = self.ohlcv_df.loc[ts_start:]
+        #ohlcv_sel_df = self.ohlcv_df.loc[ts_start:]
+        ohlcv_sel_df = self.ohlcv_df.iloc[ts_start_idx:]
 
         target_new_df = self.compute_targets_from_data(
             ohlcv_sel_df,
-            agg_specs=agg_specs,
             logging=logging)
 
-        self.target_df = \
-            self.target_df.combine_first(target_new_df)
+        if not(target_new_df is None):
+            self.target_df = \
+                self.target_df.combine_first(target_new_df)
 
     def compute_targets_from_data(
             self,
             ohlcv_df,
-            agg_specs={"high": "max",
-                       "low": "min",
-                       "volume": "sum"},
             logging=logging):
+
+        high_var = self.ohlcv_names.get("high", "high")
+        low_var = self.ohlcv_names.get("low", "low")
+        close_var = self.ohlcv_names.get("close", "close")
+        volume_var = self.ohlcv_names.get("volume", "volume")
+
+        # TODO: Maybe add this as class attribute ?
+        agg_specs = {high_var: "max",
+                     low_var: "min",
+                     volume_var: "sum"}
 
         data_target_df_list = []
         for t_hrz in self.target_time_horizon:
@@ -349,20 +368,20 @@ class ohlcvDataAnalyser(pydantic.BaseModel):
                 .agg(agg_specs)\
                 .shift(-t_hrz)
 
-            data_ohlcv_target_cur_df["close"] = \
-                ohlcv_df["close"].shift(-t_hrz)
+            data_ohlcv_target_cur_df[close_var] = \
+                ohlcv_df[close_var].shift(-t_hrz)
 
             data_ohlcv_target_cur_df.columns = \
                 [var + "_t" + str(t_hrz)
                  for var in data_ohlcv_target_cur_df.columns]
 
             # Compute high, low returns
-            ret_var = ["low", "high", "close"]
+            ret_var = [low_var, high_var, close_var]
             ret_cur_var = [var + "_t" + str(t_hrz)
                            for var in ret_var]
             data_ret_target_cur_df = \
                 data_ohlcv_target_cur_df[ret_cur_var]\
-                .div(ohlcv_df["close"],
+                .div(ohlcv_df[close_var],
                      axis=0) - 1
 
             data_ret_target_cur_df.columns = \
@@ -370,7 +389,7 @@ class ohlcvDataAnalyser(pydantic.BaseModel):
                  for var in data_ret_target_cur_df.columns]
 
             data_target_cur_df = pd.concat([data_ohlcv_target_cur_df,
-                                           data_ret_target_cur_df],
+                                            data_ret_target_cur_df],
                                            axis=1)
 
             var_match = [var for var in data_target_cur_df.columns
@@ -378,17 +397,100 @@ class ohlcvDataAnalyser(pydantic.BaseModel):
 
             data_target_df_list.append(data_target_cur_df[var_match])
 
-        return pd.concat(data_target_df_list, axis=1)
+        if len(data_target_df_list) > 0:
+            return pd.concat(data_target_df_list, axis=1)
 
     def compute_targets(self,
-                        agg_specs={"high": "max",
-                                   "low": "min",
-                                   "volume": "sum"},
                         logging=logging):
 
         self.target_df = self.compute_targets_from_data(
             self.ohlcv_df,
-            agg_specs=agg_specs,
+            logging=logging)
+
+    def compute_perf_from_data(
+            self,
+            ohlcv_df,
+            logging=logging):
+
+        open_var = self.ohlcv_names.get("open", "open")
+        high_var = self.ohlcv_names.get("high", "high")
+        low_var = self.ohlcv_names.get("low", "low")
+        close_var = self.ohlcv_names.get("close", "close")
+        volume_var = self.ohlcv_names.get("volume", "volume")
+
+        # TODO: Maybe add this as class attribute ?
+        agg_specs = {high_var: "max",
+                     low_var: "min",
+                     volume_var: "sum"}
+
+        data_perf_df_list = []
+        for t_hrz in self.perf_time_horizon:
+
+            data_ohlcv_perf_cur_df = ohlcv_df.rolling(t_hrz + 1)\
+                .agg(agg_specs)
+
+            data_ohlcv_perf_cur_df[close_var] = \
+                ohlcv_df[close_var].copy()
+
+            data_ohlcv_perf_cur_df.columns = \
+                [var + "_t" + str(t_hrz)
+                 for var in data_ohlcv_perf_cur_df.columns]
+
+            # Compute high, low returns
+            ret_var = [low_var, high_var, close_var]
+            ret_cur_var = [var + "_t" + str(t_hrz)
+                           for var in ret_var]
+            data_ret_perf_cur_df = \
+                data_ohlcv_perf_cur_df[ret_cur_var]\
+                .div(ohlcv_df[open_var].shift(t_hrz),
+                     axis=0) - 1
+
+            data_ret_perf_cur_df.columns = \
+                ["ret_" + var
+                 for var in data_ret_perf_cur_df.columns]
+
+            data_perf_cur_df = pd.concat([data_ohlcv_perf_cur_df,
+                                          data_ret_perf_cur_df],
+                                         axis=1)
+
+            var_match = [var for var in data_perf_cur_df.columns
+                         if self.perf_var_filter.search(var)]
+
+            data_perf_df_list.append(data_perf_cur_df[var_match])
+
+        if len(data_perf_df_list) > 0:
+            return pd.concat(data_perf_df_list, axis=1)
+
+    def update_perf(self,
+                    logging=logging):
+
+        if len(self.perf_time_horizon) == 0:
+            return
+
+        # ipdb.set_trace()
+        if self.perf_df is None:
+            self.perf_df = pd.DataFrame()
+            ts_start_idx = 0
+
+        else:
+            t_hrz_max = max(self.perf_time_horizon)
+            ts_start_idx = len(self.perf_df) - t_hrz_max
+
+        ohlcv_sel_df = self.ohlcv_df.iloc[ts_start_idx:]
+
+        perf_new_df = self.compute_perf_from_data(
+            ohlcv_sel_df,
+            logging=logging)
+
+        if not(perf_new_df is None):
+            self.perf_df = \
+                self.perf_df.combine_first(perf_new_df)
+
+    def compute_perf(self,
+                     logging=logging):
+
+        self.perf_df = self.compute_perf_from_data(
+            self.ohlcv_df,
             logging=logging)
 
     def build_ml_data(self, logging=logging):
@@ -407,7 +509,8 @@ class ohlcvDataAnalyser(pydantic.BaseModel):
                 if not(indic.indic_factor is None)]
 
     def get_ret_var(self, var="close"):
-        return ["ret_" + var + "_t" + str(t)
+        var_name = self.ohlcv_names.get(var, var)
+        return ["ret_" + var_name + "_t" + str(t)
                 for t in self.target_time_horizon]
 
 

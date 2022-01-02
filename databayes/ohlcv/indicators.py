@@ -7,6 +7,7 @@ import logging
 import pandas as pd
 import numpy as np
 import pkg_resources
+from ..utils import get_subclasses
 
 #from deepmerge import conservative_merger
 
@@ -20,7 +21,7 @@ if 'ipdb' in installed_pkg:
 class OHLCVIndicatorBase(pydantic.BaseModel):
 
     name: str = pydantic.Field(
-        ..., description="Indicator name")
+        None, description="Indicator name")
     name_label: str = pydantic.Field(
         None, description="Indicator name label used in pretty pretting")
     description: str = pydantic.Field(
@@ -29,17 +30,8 @@ class OHLCVIndicatorBase(pydantic.BaseModel):
     values: PandasSeries = pydantic.Field(
         None, description="Values of the indicator")
 
-    open_var: str = pydantic.Field(
-        "open", description="Open data variable name")
-    high_var: str = pydantic.Field(
-        "high", description="High data variable name")
-    low_var: str = pydantic.Field(
-        "low", description="Low data variable name")
-    close_var: str = pydantic.Field(
-        "close", description="Close data variable name")
-    volume_var: str = pydantic.Field(
-        "volume", description="Volume data variable name")
-
+    ohlcv_names: dict = pydantic.Field(
+        {}, description="OHLCV name dictionnary")
     # plot_styling: dict = pydantic.Field(
     #     {}, description="Indicator plot styling parameters")
 
@@ -70,6 +62,19 @@ class OHLCVIndicatorBase(pydantic.BaseModel):
         # conservative_merger.merge(self.plot_styling,
         #                           plot_styling_default)
 
+    @classmethod
+    def from_dict(basecls, **specs):
+        cls_sub_dict = {cls.__name__: cls for cls in get_subclasses(basecls)}
+
+        clsname = specs.pop("cls")
+        cls = cls_sub_dict.get(clsname)
+
+        if cls is None:
+            raise ValueError(
+                f"{clsname} is not a subclass of {basecls.__name__}")
+
+        return cls(**specs)
+
     def get_required_past_horizon(self):
         past_hrz = [0]
         if hasattr(self, "lag"):
@@ -80,11 +85,19 @@ class OHLCVIndicatorBase(pydantic.BaseModel):
         return max(past_hrz)
 
     def split_ohlcv(self, data_ohlcv_df):
-        return data_ohlcv_df[self.open_var], \
-            data_ohlcv_df[self.high_var], \
-            data_ohlcv_df[self.low_var], \
-            data_ohlcv_df[self.close_var], \
-            data_ohlcv_df[self.volume_var]
+
+        open_var = self.ohlcv_names.get("open", "open")
+        high_var = self.ohlcv_names.get("high", "high")
+        low_var = self.ohlcv_names.get("low", "low")
+        close_var = self.ohlcv_names.get("close", "close")
+        volume_var = self.ohlcv_names.get("volume", "volume")
+
+        return \
+            data_ohlcv_df[open_var], \
+            data_ohlcv_df[high_var], \
+            data_ohlcv_df[low_var], \
+            data_ohlcv_df[close_var], \
+            data_ohlcv_df[volume_var]
 
     def compute(self, data, logging=logging, **kwrds):
         logging.debug(f">> Compute {self.name}")
@@ -92,7 +105,7 @@ class OHLCVIndicatorBase(pydantic.BaseModel):
             f"Indicator {self.name} has no compute method")
 
 
-class RSIIndicator(OHLCVIndicatorBase):
+class RSI(OHLCVIndicatorBase):
 
     window_size: int = pydantic.Field(
         ..., description="Time window of rolling mean to be "
@@ -137,7 +150,7 @@ class RSIIndicator(OHLCVIndicatorBase):
         return self.values
 
 
-class MAReturnsIndicator(OHLCVIndicatorBase):
+class MAReturns(OHLCVIndicatorBase):
     """ Compute (low shadow - high shadow)/body ratio. """
 
     window_size: int = pydantic.Field(
@@ -204,7 +217,7 @@ class ReturnsIndicator(OHLCVIndicatorBase):
         return self.values
 
 
-class GeneralizedHammerIndicator(OHLCVIndicatorBase):
+class GeneralizedHammer(OHLCVIndicatorBase):
     """ Compute (low shadow - high shadow)/body ratio. """
 
     lag: int = pydantic.Field(
@@ -257,7 +270,7 @@ class GeneralizedHammerIndicator(OHLCVIndicatorBase):
         return self.values
 
 
-class MovingVolumeQuantileIndicator(OHLCVIndicatorBase):
+class MovingVolumeQuantile(OHLCVIndicatorBase):
     """ Compute moving volume quantile. """
 
     window_size: int = pydantic.Field(
@@ -347,7 +360,7 @@ class MovingVolumeQuantileIndicator(OHLCVIndicatorBase):
         return self.values
 
 
-class RangeIndexIndicator(OHLCVIndicatorBase):
+class RangeIndex(OHLCVIndicatorBase):
     """ Compute normalized close position from range. """
 
     window_size: int = pydantic.Field(
@@ -388,7 +401,7 @@ class RangeIndexIndicator(OHLCVIndicatorBase):
 
 
 # TODO: TO BE CONTINUED
-class SupportIndicator(OHLCVIndicatorBase):
+class Support(OHLCVIndicatorBase):
     """ Compute (low shadow - high shadow)/body ratio. """
 
     window_size: int = pydantic.Field(
