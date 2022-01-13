@@ -7,7 +7,7 @@ import pathlib
 import shutil
 import glob
 
-from .db_base import DBBase
+from .db_dataframe import DBDataFrame, DBDataFrameConfig
 
 import pkg_resources
 
@@ -18,28 +18,21 @@ if 'ipdb' in installed_pkg:
 # TODO: TRY TO REFACTOR DBCSV and DBXLSX with a parent class that shares common behaviour
 
 
-class CSVConfig(pydantic.BaseModel):
-
-    directory: str = pydantic.Field("data",
-                                    description="Data directory.")
+class CSVConfig(DBDataFrameConfig):
 
     data_pattern: str = pydantic.Field("*.csv",
                                        description="Data pattern to get data into directory.")
 
-    read_params: dict = pydantic.Field({},
-                                       description="read_csv parameters to pass to read data.")
 
-    write_params: dict = pydantic.Field({},
-                                        description="to_csv parameters to pass to write data.")
-
-    index_prefix: str = pydantic.Field("__",
-                                       description="Prefix to identify data indexes")
-
-
-class DBCSV(DBBase):
+class DBCSV(DBDataFrame):
 
     config: CSVConfig = pydantic.Field(CSVConfig(),
                                        description="The data backend configuration")
+
+    @classmethod
+    def from_dict(cls, config: CSVConfig = CSVConfig()):
+
+        cls(**config)
 
     def connect(self, config: CSVConfig = CSVConfig(), reset=False, **params):
 

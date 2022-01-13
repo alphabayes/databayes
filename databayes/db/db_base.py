@@ -27,14 +27,15 @@ def create_db(**specs):
 
 
 class DBConfigBase(pydantic.BaseModel):
-    database: str = pydantic.Field(None, description="DB database name")
-    version: str = pydantic.Field(default=None,
-                                  description="The data backend provider version")
-    host: str = pydantic.Field("localhost", description="DB host address")
-    port: str = pydantic.Field(default=None, description="DB host port")
-    user: str = pydantic.Field(default=None, description="DB user name")
-    password: str = pydantic.Field(
-        default=None, description="DB user password")
+    pass
+#     database: str = pydantic.Field(None, description="DB database name")
+#     version: str = pydantic.Field(default=None,
+#                                   description="The data backend provider version")
+#     host: str = pydantic.Field("localhost", description="DB host address")
+#     port: str = pydantic.Field(default=None, description="DB host port")
+#     user: str = pydantic.Field(default=None, description="DB user name")
+#     password: str = pydantic.Field(
+#         default=None, description="DB user password")
 
 
 class DBBase(pydantic.BaseModel):

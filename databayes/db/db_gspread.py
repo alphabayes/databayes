@@ -26,6 +26,9 @@ class GSpreadConfig(pydantic.BaseModel):
     credentials_filename: str = pydantic.Field(
         None, description="Google Cloud JSON credential filename")
 
+    index_prefix: str = pydantic.Field("__",
+                                       description="Prefix to identify data indexes")
+
 
 class DBGSpread(DBBase):
 

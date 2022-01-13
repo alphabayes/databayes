@@ -27,7 +27,7 @@ import os
 #     # No CI
 #     version = None
 
-version = "0.0.15"
+version = "0.0.16"
 
 setup(name='databayes',
       version=version,
@@ -70,6 +70,9 @@ setup(name='databayes',
           "scikit-learn",
           "pyAgrum",
           "colored",
+          "gspread_pandas",
+          "openpyxl",
+          "XlsxWriter",
           # "psycopg2", # not needed for now
           "intervals",  # Really needed ?
           "deepmerge",
