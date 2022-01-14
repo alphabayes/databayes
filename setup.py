@@ -27,13 +27,13 @@ import os
 #     # No CI
 #     version = None
 
-version = "0.0.17"
+version = "0.0.18"
 
 setup(name='databayes',
       version=version,
       url='https://github.com/alphabayes/databayes',
       author='Roland Donat',
-      author_email='roland.donat@gmail.com, roland.donat@alphabayes.fr',
+      author_email='roland.donat@gmail.com, roland.donat@edgemind.fr, roland.donat@alphabayes.fr',
       maintainer='Roland Donat',
       maintainer_email='roland.donat@gmail.com',
       keywords='pronostic datascience machine-learning ',
