@@ -7,6 +7,8 @@ import pandas as pd
 import glob
 import os
 import pathlib
+import numpy as np
+
 
 from .db_base import DBBase
 
@@ -382,7 +384,7 @@ class DBGSpread(DBDataFrame):
                     try:
                         data_df.loc[:, var] = \
                             pd.to_numeric(data_df.loc[:, var])
-                    except ValueError:
+                    except (ValueError, TypeError):
                         pass
 
     def load(self):
@@ -413,8 +415,7 @@ class DBGSpread(DBDataFrame):
         data_dump_dfd = self.get_data_to_dump(data_list=data_list)
 
         self.config.dump_params.update(
-            index=False,
-            replace=True)
+            index=False)
 
         ss_list = self.backend.sheets
         ss_name_list = [ss.title for ss in ss_list]
@@ -437,9 +438,45 @@ class DBGSpread(DBDataFrame):
                                                      regex=False)\
                                         .replace("nan", "")
 
+                # Write data
                 self.backend.df_to_sheet(
                     data_df,
                     sheet=data_name,
                     **self.config.dump_params)
+
+                # TODO: Add an option for this
+                # Clean remaining data on the sheet
+                data_nb_rows = len(data_df) + 1
+                data_nb_cols = len(data_df.columns)
+
+                # Blank potentially other data in the sheet
+                sheet_nb_rows, sheet_nb_cols = \
+                    self.backend.get_sheet_dims(data_name)
+
+                bdata_nb_rows = sheet_nb_rows - data_nb_rows
+                bdata_nb_cols = sheet_nb_cols - data_nb_cols
+
+                if bdata_nb_rows > 0:
+
+                    rows_bdf = pd.DataFrame(np.chararray(
+                        (sheet_nb_rows, sheet_nb_cols), unicode=True))
+
+                    self.backend.df_to_sheet(
+                        rows_bdf,
+                        start=(data_nb_rows + 1, 1),
+                        sheet=data_name,
+                        index=False,
+                        headers=False)
+
+                if bdata_nb_cols > 0:
+                    cols_bdf = pd.DataFrame(np.chararray(
+                        (data_nb_rows, bdata_nb_cols), unicode=True))
+
+                    self.backend.df_to_sheet(
+                        cols_bdf,
+                        start=(1, data_nb_cols + 1),
+                        sheet=data_name,
+                        index=False,
+                        headers=False)
 
                 self.is_modified[data_name] = False
