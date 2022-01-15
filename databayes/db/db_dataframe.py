@@ -378,12 +378,16 @@ class DBGSpread(DBDataFrame):
         parse_dates = self.config.load_params.get("parse_dates", [])
         for data_df in self.db.values():
             for var in data_df.columns:
+                if data_df.dtypes[var] != "object":
+                    continue
+
                 if var in parse_dates:
                     data_df.loc[:, var] = pd.to_datetime(data_df.loc[:, var])
                 else:
                     try:
                         data_df.loc[:, var] = \
-                            pd.to_numeric(data_df.loc[:, var])
+                            pd.to_numeric(
+                                data_df.loc[:, var].str.replace(",", "."))
                     except (ValueError, TypeError):
                         pass
 
