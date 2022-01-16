@@ -378,6 +378,8 @@ class DBGSpread(DBDataFrame):
         parse_dates = self.config.load_params.get("parse_dates", [])
         for data_df in self.db.values():
             for var in data_df.columns:
+                if len(var) == 0:
+                    continue
                 if data_df.dtypes[var] != "object":
                     continue
 
