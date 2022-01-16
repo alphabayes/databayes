@@ -228,7 +228,7 @@ def test_ohlcv_perf_001(data_edf_1d_1mo):
     analyser_ref.compute_perf()
 
     data_expected_filename = os.path.join(EXPECTED_PATH, "ohlcv_perf_001.csv")
-    #analyser_ref.perf_df.to_csv(data_expected_filename, sep=",")
+    analyser_ref.perf_df.to_csv(data_expected_filename, sep=",")
     ohlcv_perf_expected_df = \
         pd.read_csv(data_expected_filename,
                     sep=",",
@@ -238,8 +238,6 @@ def test_ohlcv_perf_001(data_edf_1d_1mo):
     pd.testing.assert_frame_equal(
         analyser_ref.perf_df,
         ohlcv_perf_expected_df)
-
-#    ipdb.set_trace()
 
     analyser_1 = ohlcv.ohlcvDataAnalyser(**ohlcv_specs)
     for ts in data_ohlcv_df.index:

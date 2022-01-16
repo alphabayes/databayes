@@ -424,9 +424,14 @@ class ohlcvDataAnalyser(pydantic.BaseModel):
                      volume_var: "sum"}
 
         data_perf_df_list = []
+
+        # Use close(t-1) as open(t) except for open(0)
+        ohlcv_open = ohlcv_df[close_var].shift(1)
+        ohlcv_open.iloc[0] = ohlcv_df[open_var].iloc[0]
+
         for t_hrz in self.perf_time_horizon:
 
-            data_ohlcv_perf_cur_df = ohlcv_df.rolling(t_hrz + 1)\
+            data_ohlcv_perf_cur_df = ohlcv_df.rolling(t_hrz)\
                 .agg(agg_specs)
 
             data_ohlcv_perf_cur_df[close_var] = \
@@ -440,9 +445,11 @@ class ohlcvDataAnalyser(pydantic.BaseModel):
             ret_var = [low_var, high_var, close_var]
             ret_cur_var = [var + "_t" + str(t_hrz)
                            for var in ret_var]
+
+            # ipdb.set_trace()
             data_ret_perf_cur_df = \
                 data_ohlcv_perf_cur_df[ret_cur_var]\
-                .div(ohlcv_df[open_var].shift(t_hrz),
+                .div(ohlcv_open.shift(t_hrz),
                      axis=0) - 1
 
             data_ret_perf_cur_df.columns = \
@@ -474,7 +481,7 @@ class ohlcvDataAnalyser(pydantic.BaseModel):
 
         else:
             t_hrz_max = max(self.perf_time_horizon)
-            ts_start_idx = len(self.perf_df) - t_hrz_max
+            ts_start_idx = max(0, len(self.perf_df) - t_hrz_max - 1)
 
         ohlcv_sel_df = self.ohlcv_df.iloc[ts_start_idx:]
 
