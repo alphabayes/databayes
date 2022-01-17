@@ -184,7 +184,7 @@ class MAReturns(OHLCVIndicatorBase):
         return self.values
 
 
-class ReturnsIndicator(OHLCVIndicatorBase):
+class Returns(OHLCVIndicatorBase):
     """ Compute (low shadow - high shadow)/body ratio. """
 
     lag: int = pydantic.Field(
